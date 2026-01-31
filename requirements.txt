@@ -9,5 +9,11 @@ rich>=13.7.0
 # HTTP client (for AI API)
 httpx>=0.26.0
 
+# AI Client
+openai>=1.0.0
+
+# Environment variable loading
+python-dotenv>=1.0.0
+
 # JSON handling (built-in, but explicit for clarity)
 # json (built-in)

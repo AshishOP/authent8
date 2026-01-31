@@ -1,0 +1,44 @@
+# Semgrep Configuration for Authent8
+# Focus on security issues only
+
+rules:
+  # Core security rulesets
+  - p/security-audit
+  - p/owasp-top-ten
+  - p/cwe-top-25
+  
+  # Language-specific
+  - p/python
+  - p/javascript
+  - p/typescript
+
+exclude:
+  # Directories to skip
+  - node_modules/
+  - venv/
+  - .venv/
+  - vendor/
+  - .git/
+  - dist/
+  - build/
+  - __pycache__/
+  
+  # File patterns to skip
+  - "*.min.js"
+  - "*.bundle.js"
+  - "*.test.js"
+  - "*.spec.js"
+  - "*.test.ts"
+  - "*.spec.ts"
+  - "*.test.py"
+  - "test_*.py"
+
+severity:
+  - ERROR
+  - WARNING
+
+timeout: 300
+max-memory: 4000
+
+output:
+  format: json

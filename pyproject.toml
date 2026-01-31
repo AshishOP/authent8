@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "authent8"
+version = "1.0.0"
+description = "Privacy-First Security Scanner - AI-powered vulnerability detection that keeps your code local"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Authent8 Team", email = "team@authent8.dev"}
+]
+maintainers = [
+    {name = "Authent8 Team", email = "team@authent8.dev"}
+]
+keywords = [
+    "security",
+    "scanner",
+    "vulnerability",
+    "SAST",
+    "secrets",
+    "AI",
+    "privacy",
+    "trivy",
+    "semgrep",
+    "gitleaks"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing"
+]
+requires-python = ">=3.9"
+dependencies = [
+    "click>=8.1.0",
+    "rich>=13.7.0",
+    "httpx>=0.26.0",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/authent8/authent8"
+Documentation = "https://github.com/authent8/authent8#readme"
+Repository = "https://github.com/authent8/authent8"
+Issues = "https://github.com/authent8/authent8/issues"
+
+[project.scripts]
+authent8 = "authent8.cli.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"authent8" = ["py.typed"]
+"authent8.config" = ["*.yaml", "*.yml", "*.toml"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["E501"]
