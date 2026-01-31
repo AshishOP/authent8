@@ -240,3 +240,171 @@ rules:
     languages: [python]
     metadata:
       cwe: "CWE-95"
+
+  # ============================================================
+  # CWE-352: Cross-Site Request Forgery (CSRF)
+  # ============================================================
+  - id: flask-no-csrf
+    pattern: |
+      @app.route($PATH, methods=['POST'])
+      def $FUNC(...):
+        ...
+    message: "CWE-352: POST endpoint without CSRF protection. Use Flask-WTF CSRF."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-352"
+      owasp: "A01:2021"
+
+  # ============================================================
+  # CWE-434: Unrestricted File Upload
+  # ============================================================
+  - id: unrestricted-file-upload
+    pattern: $FILE.save($PATH)
+    message: "CWE-434: File upload without extension validation. Check allowed file types."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-434"
+      owasp: "A04:2021"
+
+  # ============================================================
+  # CWE-276: Incorrect Default Permissions
+  # ============================================================
+  - id: chmod-777
+    pattern: os.chmod($PATH, 0o777)
+    message: "CWE-276: Setting file permissions to 777 is insecure."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-276"
+      owasp: "A05:2021"
+
+  - id: chmod-world-writable
+    pattern: os.chmod($PATH, $MODE)
+    message: "CWE-276: Check file permissions - avoid world-writable."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-276"
+
+  # ============================================================
+  # CWE-200: Information Exposure
+  # ============================================================
+  - id: exception-info-leak
+    pattern: return jsonify(..., $KEY=str($E), ...)
+    message: "CWE-200: Exception details in response may leak sensitive info."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-200"
+      owasp: "A04:2021"
+
+  - id: traceback-exposure
+    pattern: traceback.format_exc()
+    message: "CWE-200: Traceback in response exposes internal details."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-200"
+
+  # ============================================================
+  # CWE-287: Improper Authentication
+  # ============================================================
+  - id: plain-password-compare
+    pattern: |
+      if $PASSWORD == $STORED:
+        ...
+    message: "CWE-287: Plain text password comparison. Use constant-time compare."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-287"
+      owasp: "A07:2021"
+
+  # ============================================================
+  # CWE-400: Resource Exhaustion
+  # ============================================================
+  - id: unbounded-loop-request
+    pattern: |
+      while True:
+        $X = request.$METHOD(...)
+    message: "CWE-400: Unbounded loop with request data may cause DoS."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-400"
+      owasp: "A04:2021"
+
+  # ============================================================
+  # CWE-306: Missing Auth on Critical Function
+  # ============================================================
+  - id: delete-without-auth
+    pattern: |
+      def delete_$ENTITY($ID):
+        $DB.delete($ID)
+    message: "CWE-306: Delete operation without visible authorization check."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-306"
+      owasp: "A07:2021"
+
+  # ============================================================
+  # CWE-862: Missing Authorization
+  # ============================================================
+  - id: admin-no-auth-check
+    pattern: |
+      def admin_$FUNC(...):
+        return $DATA
+    message: "CWE-862: Admin function without visible authorization check."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-862"
+      owasp: "A01:2021"
+
+  # ============================================================
+  # JWT Vulnerabilities
+  # ============================================================
+  - id: jwt-none-algorithm
+    pattern: jwt.decode($TOKEN, ..., algorithms=[..., 'none', ...], ...)
+    message: "CWE-327: JWT with 'none' algorithm allows token forgery."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-327"
+      owasp: "A07:2021"
+
+  - id: jwt-no-verify
+    pattern: jwt.decode($TOKEN, ..., verify=False, ...)
+    message: "CWE-347: JWT decoded without signature verification."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-347"
+      owasp: "A07:2021"
+
+  # ============================================================
+  # Mass Assignment
+  # ============================================================
+  - id: mass-assignment
+    pattern: $MODEL.update(**request.$DATA)
+    message: "CWE-915: Mass assignment vulnerability - validate input fields."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-915"
+      owasp: "A01:2021"
+
+  # ============================================================
+  # Broken Object Level Authorization (BOLA)
+  # ============================================================
+  - id: bola-direct-object
+    pattern: $MODEL.get($ID)
+    message: "CWE-639: Direct object access - verify user owns this resource."
+    severity: INFO
+    languages: [python]
+    metadata:
+      cwe: "CWE-639"
+      owasp: "A01:2021"

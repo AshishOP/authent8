@@ -50,22 +50,26 @@ class SemgrepScanner:
             for pattern in self.EXCLUDE_PATTERNS:
                 exclude_args.extend(["--exclude", pattern])
             
-            # Custom rules path
-            custom_rules = Path(__file__).parent.parent / "config" / "custom_rules.yml"
-            
             # Use multiple rule packs for maximum coverage
+            # NOTE: Custom rules removed - they can cause silent failures
             cmd = [
                 "semgrep",
                 "--config", "p/security-audit",
                 "--config", "p/owasp-top-ten",
-                "--config", "p/secrets",              # +5% recall for secrets
+                "--config", "p/cwe-top-25",           # CWE Top 25 2024
+                "--config", "p/secrets",              # Secrets detection
                 "--config", "p/python",               # Python-specific patterns
-                "--config", "p/sql-injection",        # Focused SQL injection
-                "--config", "p/command-injection",    # Command injection patterns
-                "--config", str(custom_rules),        # Our custom 22 rules for missing CWEs
+                "--config", "p/flask",                # Flask security
+                "--config", "p/django",               # Django security
+                "--config", "p/jwt",                  # JWT vulnerabilities
+                "--config", "p/sql-injection",        # SQL injection
+                "--config", "p/command-injection",    # Command injection
+                "--config", "p/xss",                  # XSS patterns
+                "--config", "p/insecure-transport",   # HTTP/TLS issues
                 "--json",
                 "--quiet",
-                "--metrics", "off",  # Privacy: no telemetry
+                "--no-git-ignore",    # Don't skip untracked files
+                "--metrics", "off",   # Privacy: no telemetry
             ] + exclude_args + [
                 str(self.project_path)
             ]
@@ -94,6 +98,26 @@ class SemgrepScanner:
             print(f"⚠️  Semgrep scan failed: {e}")
             return []
     
+    def _sanitize_text(self, text: str) -> str:
+        """Remove non-ASCII characters to avoid encoding issues"""
+        if not text:
+            return ""
+        # Replace common Unicode chars with ASCII equivalents
+        replacements = {
+            '\u2026': '...',  # ellipsis
+            '\u2019': "'",    # right single quote
+            '\u2018': "'",    # left single quote
+            '\u201c': '"',    # left double quote
+            '\u201d': '"',    # right double quote
+            '\u2014': '--',   # em dash
+            '\u2013': '-',    # en dash
+            '\u00a0': ' ',    # non-breaking space
+        }
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+        # Remove any remaining non-ASCII
+        return text.encode('ascii', 'ignore').decode('ascii')
+    
     def _parse_results(self, data: Dict) -> List[Dict]:
         """Parse Semgrep JSON output into normalized format"""
         findings = []
@@ -104,7 +128,7 @@ class SemgrepScanner:
             # Get code snippet (limited to 300 chars for privacy)
             extra = result.get("extra", {})
             lines = extra.get("lines", "")
-            code_snippet = lines[:300] if lines else ""
+            code_snippet = self._sanitize_text(lines[:300]) if lines else ""
             
             # Map Semgrep severity to our standard
             semgrep_severity = extra.get("severity", "WARNING").upper()
@@ -115,14 +139,17 @@ class SemgrepScanner:
             }
             severity = severity_map.get(semgrep_severity, "MEDIUM")
             
+            # Sanitize message text to remove Unicode
+            message = self._sanitize_text(extra.get("message", ""))
+            
             finding = {
                 "tool": "semgrep",
                 "type": "sast",
                 "severity": severity,
-                "rule_id": result.get("check_id", ""),
-                "title": extra.get("message", "")[:200],
-                "description": extra.get("message", "")[:500],
-                "message": extra.get("message", "")[:200],
+                "rule_id": self._sanitize_text(result.get("check_id", "")),
+                "title": message[:200],
+                "description": message[:500],
+                "message": message[:200],
                 
                 # Location
                 "file": Path(result.get("path", "")).name,

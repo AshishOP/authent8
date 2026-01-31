@@ -296,6 +296,13 @@ def interactive_path_selector() -> Path:
 # PROGRESS TRACKING SCANNER
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Directories to skip when counting files
+SKIP_DIRS = {
+    'node_modules', '.git', '.venv', 'venv', '__pycache__', 
+    'dist', 'build', '.tox', 'coverage', '.nyc_output', 
+    '.next', '.nuxt', 'vendor', '.cache', '.pytest_cache'
+}
+
 def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, verbose: bool = False):
     """Run scan with detailed progress tracking"""
     
@@ -304,12 +311,16 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
     
     project_path = Path(path)
     
-    # Get file list for progress tracking
-    all_files = list(project_path.rglob('*'))
-    scannable_files = [f for f in all_files if f.is_file() and f.suffix in 
-                      ['.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rb', '.php', 
+    # Get file list for progress tracking (excluding common ignored dirs)
+    scannable_files = []
+    for f in project_path.rglob('*'):
+        # Skip if in ignored directory
+        if any(skip_dir in f.parts for skip_dir in SKIP_DIRS):
+            continue
+        if f.is_file() and f.suffix in ['.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rb', '.php', 
                        '.cs', '.c', '.cpp', '.h', '.rs', '.swift', '.kt', '.scala', '.yaml', 
-                       '.yml', '.json', '.xml', '.sh', '.bash', '.sql', '.html', '.css']]
+                       '.yml', '.json', '.xml', '.sh', '.bash', '.sql', '.html', '.css']:
+            scannable_files.append(f)
     
     total_files = len(scannable_files)
     
@@ -392,7 +403,10 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
         
         # AI VALIDATION
         if not no_ai and all_findings:
-            api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GITHUB_TOKEN")
+            api_key = os.getenv("FASTROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GITHUB_TOKEN")
+            # Skip placeholder keys
+            if api_key and api_key.startswith("your-"):
+                api_key = os.getenv("FASTROUTER_API_KEY") or os.getenv("GITHUB_TOKEN")
             if api_key:
                 ai_task = progress.add_task("[yellow]AI[/yellow] - Validating findings", total=len(all_findings))
                 
@@ -419,8 +433,9 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
                                    description=f"[green]AI[/green] ✓ Removed {false_positives} false positives")
                     
                 except Exception as e:
+                    err_msg = str(e).encode('ascii', 'ignore').decode('ascii')[:30]
                     progress.update(ai_task, completed=len(all_findings),
-                                   description=f"[yellow]AI[/yellow] ⚠ Skipped: {str(e)[:30]}")
+                                   description=f"[yellow]AI[/yellow] - Skipped: {err_msg}")
     
     # Filter real findings
     real_findings = [f for f in all_findings if not f.get("is_false_positive", False)]
