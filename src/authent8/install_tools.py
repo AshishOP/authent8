@@ -49,7 +49,6 @@ def install_trivy():
         # Try apt first
         if is_installed("apt-get"):
             try:
-                # Add Trivy repo and install
                 cmds = [
                     "sudo apt-get update -qq",
                     "sudo apt-get install -y wget apt-transport-https gnupg lsb-release -qq",
@@ -78,7 +77,6 @@ def install_trivy():
                 tarfile = os.path.join(tmpdir, "trivy.tar.gz")
                 urllib.request.urlretrieve(url, tarfile)
                 subprocess.run(["tar", "-xzf", tarfile, "-C", tmpdir], check=True)
-                # Move to /usr/local/bin
                 subprocess.run(["sudo", "mv", os.path.join(tmpdir, "trivy"), "/usr/local/bin/"], check=True)
             print("✅ Trivy installed!")
             return True
@@ -86,10 +84,40 @@ def install_trivy():
             print(f"⚠️  Could not auto-install Trivy: {e}")
     
     elif system == "windows":
+        # Try Chocolatey first
         if is_installed("choco"):
             if run_cmd(["choco", "install", "trivy", "-y"]):
                 print("✅ Trivy installed via Chocolatey!")
                 return True
+        
+        # Download binary directly
+        try:
+            import zipfile
+            url = "https://github.com/aquasecurity/trivy/releases/download/v0.50.0/trivy_0.50.0_windows-64bit.zip"
+            local_bin = os.path.join(os.environ.get("LOCALAPPDATA", ""), "authent8", "bin")
+            os.makedirs(local_bin, exist_ok=True)
+            
+            with tempfile.TemporaryDirectory() as tmpdir:
+                zip_path = os.path.join(tmpdir, "trivy.zip")
+                print("   Downloading Trivy...")
+                urllib.request.urlretrieve(url, zip_path)
+                
+                with zipfile.ZipFile(zip_path, 'r') as z:
+                    z.extractall(tmpdir)
+                
+                # Move to local bin
+                src = os.path.join(tmpdir, "trivy.exe")
+                dst = os.path.join(local_bin, "trivy.exe")
+                shutil.copy2(src, dst)
+                
+                # Add to PATH for this session
+                os.environ["PATH"] = local_bin + os.pathsep + os.environ.get("PATH", "")
+                
+                print(f"✅ Trivy installed to {local_bin}")
+                print(f"   Add this to your PATH: {local_bin}")
+                return True
+        except Exception as e:
+            print(f"⚠️  Could not auto-install Trivy: {e}")
     
     print("❌ Please install Trivy manually: https://trivy.dev/latest/getting-started/installation/")
     return False
@@ -125,10 +153,39 @@ def install_gitleaks():
             print(f"⚠️  Could not auto-install Gitleaks: {e}")
     
     elif system == "windows":
+        # Try Chocolatey first
         if is_installed("choco"):
             if run_cmd(["choco", "install", "gitleaks", "-y"]):
                 print("✅ Gitleaks installed via Chocolatey!")
                 return True
+        
+        # Download binary directly
+        try:
+            import zipfile
+            url = "https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_windows_x64.zip"
+            local_bin = os.path.join(os.environ.get("LOCALAPPDATA", ""), "authent8", "bin")
+            os.makedirs(local_bin, exist_ok=True)
+            
+            with tempfile.TemporaryDirectory() as tmpdir:
+                zip_path = os.path.join(tmpdir, "gitleaks.zip")
+                print("   Downloading Gitleaks...")
+                urllib.request.urlretrieve(url, zip_path)
+                
+                with zipfile.ZipFile(zip_path, 'r') as z:
+                    z.extractall(tmpdir)
+                
+                # Move to local bin
+                src = os.path.join(tmpdir, "gitleaks.exe")
+                dst = os.path.join(local_bin, "gitleaks.exe")
+                shutil.copy2(src, dst)
+                
+                # Add to PATH for this session
+                os.environ["PATH"] = local_bin + os.pathsep + os.environ.get("PATH", "")
+                
+                print(f"✅ Gitleaks installed to {local_bin}")
+                return True
+        except Exception as e:
+            print(f"⚠️  Could not auto-install Gitleaks: {e}")
     
     print("❌ Please install Gitleaks manually: https://github.com/gitleaks/gitleaks/releases")
     return False

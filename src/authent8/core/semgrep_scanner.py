@@ -15,9 +15,38 @@ class SemgrepScanner:
         self.project_path = project_path
         self.config_path = Path(__file__).parent.parent / "config" / ".semgrep.yml"
     
+    # Directories and files to exclude
+    EXCLUDE_PATTERNS = [
+        "node_modules",
+        ".git",
+        ".env",
+        ".env.*",
+        "*.min.js",
+        "*.min.css",
+        "dist",
+        "build",
+        "vendor",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".tox",
+        "coverage",
+        ".nyc_output",
+        "*.log",
+        "package-lock.json",
+        "yarn.lock",
+        "poetry.lock",
+        "Pipfile.lock",
+    ]
+    
     def scan(self) -> List[Dict]:
         """Run Semgrep scan and return normalized findings"""
         try:
+            # Build exclude arguments
+            exclude_args = []
+            for pattern in self.EXCLUDE_PATTERNS:
+                exclude_args.extend(["--exclude", pattern])
+            
             # Use direct config instead of config file for now
             cmd = [
                 "semgrep",
@@ -26,6 +55,7 @@ class SemgrepScanner:
                 "--json",
                 "--quiet",
                 "--metrics", "off",  # Privacy: no telemetry
+            ] + exclude_args + [
                 str(self.project_path)
             ]
             

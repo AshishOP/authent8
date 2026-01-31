@@ -11,65 +11,91 @@ from typing import List, Dict
 class GitleaksScanner:
     """Wrapper for Gitleaks secret scanner"""
     
+    # Directories to exclude
+    EXCLUDE_PATHS = [
+        "node_modules",
+        ".git",
+        "dist",
+        "build",
+        "vendor",
+        "__pycache__",
+        ".venv",
+        "venv",
+        "coverage",
+        ".nyc_output",
+    ]
+    
     def __init__(self, project_path: Path):
         self.project_path = project_path
         self.config_path = Path(__file__).parent.parent / "config" / "gitleaks.toml"
     
+    def _create_gitleaks_config(self, tmpdir: str) -> str:
+        """Create a temporary gitleaks config with exclusions"""
+        import os
+        config_content = """
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+    '''node_modules''',
+    '''\.git''',
+    '''dist''',
+    '''build''',
+    '''vendor''',
+    '''__pycache__''',
+    '''\.venv''',
+    '''venv''',
+    '''\.env\.example''',
+    '''package-lock\.json''',
+    '''yarn\.lock''',
+]
+"""
+        config_path = os.path.join(tmpdir, "gitleaks.toml")
+        with open(config_path, 'w') as f:
+            f.write(config_content)
+        return config_path
+    
     def scan(self) -> List[Dict]:
         """Run Gitleaks scan and return normalized findings"""
         try:
-            cmd = [
-                "gitleaks", "detect",
-                "--source", str(self.project_path),
-                "--report-format", "json",
-                "--no-git",  # Don't scan git history
-                "--redact"   # Redact secret values
-            ]
-            
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300  # 5 minutes
-            )
-            
-            # Gitleaks returns exit code 1 when secrets are found
-            # Gitleaks writes JSON to a report file, not stdout
-            # Let's save to temp file instead
             import tempfile
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                report_path = f.name
+            import os
             
-            cmd = [
-                "gitleaks", "detect",
-                "--source", str(self.project_path),
-                "--report-path", report_path,
-                "--report-format", "json",
-                "--no-git",
-                "--redact"
-            ]
-            
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300
-            )
-            
-            # Read the report file
-            try:
-                with open(report_path, 'r') as f:
-                    data = json.load(f)
-                    if isinstance(data, list) and len(data) > 0:
-                        return self._parse_results(data)
-            except (FileNotFoundError, json.JSONDecodeError):
-                pass
-            finally:
-                # Clean up temp file
-                import os
+            # Create temp dir for config and report
+            with tempfile.TemporaryDirectory() as tmpdir:
+                report_path = os.path.join(tmpdir, "gitleaks_report.json")
+                config_path = self._create_gitleaks_config(tmpdir)
+                
+                cmd = [
+                    "gitleaks", "detect",
+                    "--source", str(self.project_path),
+                    "--report-path", report_path,
+                    "--report-format", "json",
+                    "--config", config_path,
+                    "--no-git",
+                    "--redact"
+                ]
+                
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=300
+                )
+                
+                # Read the report file
                 try:
-                    os.unlink(report_path)
-                except:
+                    with open(report_path, 'r') as f:
+                        data = json.load(f)
+                        if isinstance(data, list) and len(data) > 0:
+                            # Filter out files in excluded paths
+                            filtered_data = [
+                                s for s in data 
+                                if not any(excl in s.get("File", "") for excl in self.EXCLUDE_PATHS)
+                            ]
+                            return self._parse_results(filtered_data)
+                except (FileNotFoundError, json.JSONDecodeError):
                     pass
             
             return []

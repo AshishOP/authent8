@@ -569,6 +569,31 @@ def display_results_with_ai(findings: list, scanner_stats: dict, total_time: flo
 # MAIN MENU
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def get_scan_options() -> dict:
+    """Interactive prompt for scan options (--no-ai, -v, -o)"""
+    console.print()
+    console.print("[bold]⚙️  Scan Options[/bold]")
+    console.print("[dim]─" * 40 + "[/dim]")
+    
+    # AI validation
+    use_ai = Confirm.ask("  [cyan]Enable AI validation?[/cyan]", default=True)
+    
+    # Verbose output
+    verbose = Confirm.ask("  [cyan]Show all findings (verbose)?[/cyan]", default=False)
+    
+    # Save to file
+    save_report = Confirm.ask("  [cyan]Save report to file?[/cyan]", default=False)
+    output = None
+    if save_report:
+        output = Prompt.ask("  [cyan]Output filename[/cyan]", default="authent8_report.json")
+    
+    console.print()
+    return {
+        'no_ai': not use_ai,
+        'verbose': verbose,
+        'output': output
+    }
+
 def show_main_menu():
     """Display enhanced main menu with 3D banner"""
     clear_screen()
@@ -670,14 +695,14 @@ def run():
         
         elif choice == "1":
             target = Path.cwd()
-            use_ai = Confirm.ask("[cyan]Enable AI validation?[/cyan]", default=True)
-            run_scan_with_progress(str(target), no_ai=not use_ai)
+            options = get_scan_options()
+            run_scan_with_progress(str(target), **options)
             input("\n[dim]Press Enter to continue...[/dim]")
         
         elif choice == "2":
             target = interactive_path_selector()
-            use_ai = Confirm.ask("[cyan]Enable AI validation?[/cyan]", default=True)
-            run_scan_with_progress(str(target), no_ai=not use_ai)
+            options = get_scan_options()
+            run_scan_with_progress(str(target), **options)
             input("\n[dim]Press Enter to continue...[/dim]")
         
         elif choice == "3":
@@ -688,8 +713,8 @@ def run():
                 console.print("[red]Path does not exist![/red]")
                 time.sleep(2)
                 continue
-            use_ai = Confirm.ask("[cyan]Enable AI validation?[/cyan]", default=True)
-            run_scan_with_progress(str(target), no_ai=not use_ai)
+            options = get_scan_options()
+            run_scan_with_progress(str(target), **options)
             input("\n[dim]Press Enter to continue...[/dim]")
         
         elif choice == "4":
