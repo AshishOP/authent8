@@ -346,10 +346,35 @@
         <div class="install-box" data-aos="fade-up">
             <h2 style="font-size: 2.8rem; margin-bottom: 1rem; font-weight: 800;">Ready to secure your stack?</h2>
             <p style="color: var(--secondary); font-size: 1.1rem;">Get started with our lightweight CLI tool.</p>
-            <div class="code-shell">
+            
+            <!-- OS Tabs -->
+            <div style="display: flex; justify-content: center; gap: 0.5rem; margin: 2rem 0 1.5rem;">
+                <button onclick="showOS('linux')" id="tab-linux" class="os-tab active" style="padding: 0.7rem 1.5rem; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,0.1); color: #fff; cursor: pointer; font-weight: 600; transition: 0.2s;">
+                    <i data-lucide="terminal" size="16" style="vertical-align: middle; margin-right: 6px;"></i>Linux
+                </button>
+                <button onclick="showOS('mac')" id="tab-mac" class="os-tab" style="padding: 0.7rem 1.5rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: #888; cursor: pointer; font-weight: 600; transition: 0.2s;">
+                    <i data-lucide="apple" size="16" style="vertical-align: middle; margin-right: 6px;"></i>macOS
+                </button>
+                <button onclick="showOS('win')" id="tab-win" class="os-tab" style="padding: 0.7rem 1.5rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: #888; cursor: pointer; font-weight: 600; transition: 0.2s;">
+                    <i data-lucide="square" size="16" style="vertical-align: middle; margin-right: 6px;"></i>Windows
+                </button>
+            </div>
+
+            <!-- Install Commands -->
+            <div id="install-linux" class="code-shell">
                 <span style="color: #666;">$</span>
-                <span style="color: #fff;">curl -sSL https://auth8.dev/install | sh</span>
-                <i data-lucide="copy" size="18" style="cursor:pointer; color: var(--secondary); transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--secondary)'"></i>
+                <span style="color: #fff;">curl -fsSL https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash</span>
+                <i data-lucide="copy" size="18" style="cursor:pointer; color: var(--secondary);" onclick="copyCmd('linux')"></i>
+            </div>
+            <div id="install-mac" class="code-shell" style="display: none;">
+                <span style="color: #666;">$</span>
+                <span style="color: #fff;">curl -fsSL https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash</span>
+                <i data-lucide="copy" size="18" style="cursor:pointer; color: var(--secondary);" onclick="copyCmd('mac')"></i>
+            </div>
+            <div id="install-win" class="code-shell" style="display: none;">
+                <span style="color: #666;">PS&gt;</span>
+                <span style="color: #fff;">irm https://raw.githubusercontent.com/AshishOP/authent8/main/install.ps1 | iex</span>
+                <i data-lucide="copy" size="18" style="cursor:pointer; color: var(--secondary);" onclick="copyCmd('win')"></i>
             </div>
         </div>
     </section>
@@ -385,6 +410,30 @@
                 nav.classList.remove('scrolled');
             }
         });
+
+        // OS Tab Switcher
+        function showOS(os) {
+            ['linux', 'mac', 'win'].forEach(id => {
+                document.getElementById('install-' + id).style.display = 'none';
+                document.getElementById('tab-' + id).style.background = 'transparent';
+                document.getElementById('tab-' + id).style.color = '#888';
+            });
+            document.getElementById('install-' + os).style.display = 'inline-flex';
+            document.getElementById('tab-' + os).style.background = 'rgba(255,255,255,0.1)';
+            document.getElementById('tab-' + os).style.color = '#fff';
+            lucide.createIcons();
+        }
+
+        // Copy command to clipboard
+        function copyCmd(os) {
+            const cmds = {
+                linux: 'curl -fsSL https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash',
+                mac: 'curl -fsSL https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash',
+                win: 'irm https://raw.githubusercontent.com/AshishOP/authent8/main/install.ps1 | iex'
+            };
+            navigator.clipboard.writeText(cmds[os]);
+            alert('Copied!');
+        }
     </script>
 </body>
 </html>

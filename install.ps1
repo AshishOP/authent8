@@ -1,5 +1,5 @@
 # Authent8 Installer for Windows
-# Usage: irm https://raw.githubusercontent.com/yourusername/authent8/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/AshishOP/authent8/main/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
@@ -85,7 +85,7 @@ try {
     Write-Host "       " -NoNewline; Write-Green "✓ Authent8 installed"
 } catch {
     Write-Host "       " -NoNewline; Write-Yellow "→ Installing from GitHub..."
-    python -m pip install --user git+https://github.com/yourusername/authent8.git --quiet
+    python -m pip install --user git+https://github.com/AshishOP/authent8.git --quiet
     Write-Host "       " -NoNewline; Write-Green "✓ Authent8 installed"
 }
 

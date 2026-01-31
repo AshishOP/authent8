@@ -1,6 +1,6 @@
 #!/bin/bash
 # Authent8 Installer for Linux/macOS
-# Usage: curl -fsSL https://raw.githubusercontent.com/yourusername/authent8/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash
 
 set -e
 
@@ -73,11 +73,11 @@ echo -e "${BLUE}[4/5]${NC} Installing Authent8..."
 pipx install authent8 2>/dev/null || pipx upgrade authent8 2>/dev/null || {
     # If not on PyPI yet, install from GitHub
     echo -e "       ${YELLOW}→${NC} Installing from GitHub..."
-    pipx install git+https://github.com/yourusername/authent8.git 2>/dev/null || {
+    pipx install git+https://github.com/AshishOP/authent8.git 2>/dev/null || {
         echo -e "       ${RED}✗${NC} Could not install from PyPI or GitHub"
         echo -e "       ${YELLOW}→${NC} Trying local install..."
         cd /tmp
-        git clone https://github.com/yourusername/authent8.git authent8-install
+        git clone https://github.com/AshishOP/authent8.git authent8-install
         cd authent8-install
         pipx install .
         cd ..
