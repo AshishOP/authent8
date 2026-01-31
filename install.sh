@@ -84,21 +84,19 @@ if ! command -v pipx &> /dev/null; then
     done
 fi
 
-$PIPX_CMD install authent8 2>/dev/null || $PIPX_CMD upgrade authent8 2>/dev/null || {
-    # If not on PyPI yet, install from GitHub
-    echo -e "       ${YELLOW}→${NC} Installing from GitHub..."
-    $PIPX_CMD install git+https://github.com/AshishOP/authent8.git 2>/dev/null || {
-        echo -e "       ${YELLOW}→${NC} Using pip install instead..."
-        python3 -m pip install --user git+https://github.com/AshishOP/authent8.git 2>/dev/null || {
-            echo -e "       ${YELLOW}→${NC} Trying local install..."
-            cd /tmp
-            git clone https://github.com/AshishOP/authent8.git authent8-install
-            cd authent8-install
-            python3 -m pip install --user . 
-            cd ..
-            rm -rf authent8-install
-        }
-    }
+# Clean up any previous failed install
+rm -rf /tmp/authent8-install 2>/dev/null || true
+
+# Skip pipx entirely - just use pip directly (more reliable)
+echo -e "       ${YELLOW}→${NC} Installing from GitHub..."
+python3 -m pip install --user git+https://github.com/AshishOP/authent8.git 2>/dev/null || {
+    echo -e "       ${YELLOW}→${NC} Cloning and installing locally..."
+    cd /tmp
+    git clone https://github.com/AshishOP/authent8.git authent8-install
+    cd authent8-install
+    python3 -m pip install --user .
+    cd /tmp
+    rm -rf authent8-install
 }
 echo -e "       ${GREEN}✓${NC} Authent8 installed"
 
