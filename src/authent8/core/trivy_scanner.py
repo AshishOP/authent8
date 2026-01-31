@@ -51,14 +51,22 @@ class TrivyScanner:
     def scan(self) -> List[Dict]:
         """Run Trivy scan and return normalized findings"""
         try:
+            # Check if trivy is installed
+            trivy_path = get_tool_path("trivy")
+            
+            # Build command with comprehensive scanning
             cmd = [
-                "trivy", "fs",
-                "--config", str(self.config_path),
+                trivy_path, "fs",
                 "--severity", "CRITICAL,HIGH,MEDIUM",
                 "--format", "json",
-                "--quiet",
+                "--scanners", "vuln,secret,misconfig",  # Scan vulnerabilities, secrets, and misconfigs
                 str(self.project_path)
             ]
+            
+            # Add config if exists
+            if self.config_path.exists():
+                cmd.insert(2, "--config")
+                cmd.insert(3, str(self.config_path))
             
             result = subprocess.run(
                 cmd,
@@ -67,11 +75,18 @@ class TrivyScanner:
                 timeout=600  # 10 minutes
             )
             
-            if result.returncode == 0 and result.stdout:
-                data = json.loads(result.stdout)
-                return self._parse_results(data)
+            # Trivy returns 0 even with findings, parse any output
+            if result.stdout:
+                try:
+                    data = json.loads(result.stdout)
+                    return self._parse_results(data)
+                except json.JSONDecodeError:
+                    pass
             
-            # No findings or error
+            # Check stderr for errors
+            if result.returncode != 0 and result.stderr:
+                print(f"⚠️  Trivy warning: {result.stderr[:100]}")
+            
             return []
             
         except subprocess.TimeoutExpired:

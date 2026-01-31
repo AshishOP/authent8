@@ -1,16 +1,18 @@
 # Trivy Configuration for Authent8
-# Focus on HIGH and CRITICAL vulnerabilities only
+# Enhanced vulnerability and misconfiguration scanning
 
 scan:
   security-checks:
-    - vuln      # Vulnerabilities
-    - config    # Misconfigurations
+    - vuln      # Vulnerabilities in dependencies
+    - config    # Misconfigurations (IaC)
+    - secret    # Basic secret detection (supplementary to gitleaks)
   
   severity:
     - CRITICAL
     - HIGH
     - MEDIUM
   
+  # Directories to skip (performance boost)
   skip-dirs:
     - node_modules
     - vendor
@@ -21,14 +23,66 @@ scan:
     - __pycache__
     - dist
     - build
+    - .next
+    - .nuxt
+    - .cache
+    - coverage
+    - target
+    - bin
+    - obj
+    - .tox
+    - .eggs
+  
+  # Files to skip
+  skip-files:
+    - "**/*.test.js"
+    - "**/*.spec.js"
+    - "**/*.min.js"
+    - "**/*.bundle.js"
+    - "**/package-lock.json"
+    - "**/yarn.lock"
 
 vulnerability:
+  # Only show vulnerabilities with fixes available
   ignore-unfixed: true
+  
+  # Ignore specific CVEs (add after manual review)
+  # ignore:
+  #   - CVE-2021-12345
+
+misconfiguration:
+  # Include Terraform, Kubernetes, Docker checks
+  include:
+    - terraform
+    - kubernetes
+    - dockerfile
+    - cloudformation
+    - helm
+    - ansible
 
 database:
+  # Keep vulnerability DB updated
   skip-update: false
+  
+  # Use full DB for comprehensive scanning
+  light: false
 
 report:
   format: json
+  
+  # Include all packages for better context
+  list-all-pkgs: true
 
+# Compliance standards to check
+compliance:
+  - docker-cis
+  - k8s-cis
+
+# Performance settings
 timeout: 10m
+parallel: 5
+
+# Cache settings for faster subsequent scans
+cache:
+  dir: ~/.cache/trivy
+  ttl: 12h

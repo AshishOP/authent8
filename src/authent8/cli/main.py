@@ -8,6 +8,7 @@ import json
 import os
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
@@ -15,6 +16,10 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeEl
 from rich.panel import Panel
 from rich import box
 from rich.prompt import Prompt, Confirm
+from rich.layout import Layout
+from rich.text import Text
+from rich.align import Align
+from rich.columns import Columns
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -26,6 +31,49 @@ from authent8.install_tools import check_and_install, is_installed
 from authent8 import __version__
 
 console = Console()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCAN HISTORY
+# ═══════════════════════════════════════════════════════════════════════════════
+
+HISTORY_FILE = Path.home() / ".authent8_history.json"
+MAX_HISTORY = 10
+
+def load_scan_history() -> list:
+    """Load scan history from file"""
+    try:
+        if HISTORY_FILE.exists():
+            with open(HISTORY_FILE, 'r') as f:
+                return json.load(f)
+    except:
+        pass
+    return []
+
+def save_scan_history(history: list):
+    """Save scan history to file"""
+    try:
+        with open(HISTORY_FILE, 'w') as f:
+            json.dump(history[-MAX_HISTORY:], f, indent=2)
+    except:
+        pass
+
+def add_to_history(path: str, findings_count: int, critical: int, high: int, duration: float):
+    """Add a scan to history"""
+    history = load_scan_history()
+    history.append({
+        "path": path,
+        "timestamp": datetime.now().isoformat(),
+        "findings": findings_count,
+        "critical": critical,
+        "high": high,
+        "duration": round(duration, 1)
+    })
+    save_scan_history(history)
+
+def get_recent_scans(limit: int = 3) -> list:
+    """Get most recent scans"""
+    history = load_scan_history()
+    return history[-limit:][::-1]  # Reverse to show newest first
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FIRST-RUN TOOL CHECK
@@ -68,108 +116,260 @@ def check_first_run():
             console.print(f"[dim]⚠ Missing tools: {', '.join(missing)}. Run 'authent8-setup' to install.[/dim]")
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 3D BANNER & UI HELPERS
+# ENHANCED UI COMPONENTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def clear_screen():
     """Clear terminal screen"""
     os.system('clear' if os.name != 'nt' else 'cls')
 
-def print_3d_banner():
-    """Print 3D-style banner like Gemini CLI"""
-    banner_lines = [
-        "                                                                          ",
-        "     █████╗ ██╗   ██╗████████╗██╗  ██╗███████╗███╗   ██╗████████╗ █████╗  ",
-        "    ██╔══██╗██║   ██║╚══██╔══╝██║  ██║██╔════╝████╗  ██║╚══██╔══╝██╔══██╗ ",
-        "    ███████║██║   ██║   ██║   ███████║█████╗  ██╔██╗ ██║   ██║   ╚█████╔╝ ",
-        "    ██╔══██║██║   ██║   ██║   ██╔══██║██╔══╝  ██║╚██╗██║   ██║   ██╔══██╗ ",
-        "    ██║  ██║╚██████╔╝   ██║   ██║  ██║███████╗██║ ╚████║   ██║   ╚█████╔╝ ",
-        "    ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝    ╚════╝  ",
-        "                                                                          ",
-    ]
-    
-    colors = ['bright_cyan', 'cyan', 'blue', 'bright_blue', 'blue', 'cyan', 'bright_cyan', 'dim']
-    
+def get_gradient_banner():
+    """Create a sleek gradient-style ASCII banner"""
+    # Compact, modern banner
+    banner = """
+[bold bright_cyan]    ╭──────────────────────────────────────────────────────────────╮[/bold bright_cyan]
+[bold bright_cyan]    │[/bold bright_cyan]                                                              [bold bright_cyan]│[/bold bright_cyan]
+[bold cyan]    │[/bold cyan]     [bold white]█████[/bold white]  [bold white]██[/bold white]   [bold white]██[/bold white] [bold white]████████[/bold white] [bold white]██[/bold white]  [bold white]██[/bold white] [bold white]███████[/bold white] [bold white]███[/bold white]   [bold white]██[/bold white] [bold white]████████[/bold white] [bold white]█████[/bold white]    [bold cyan]│[/bold cyan]
+[bold blue]    │[/bold blue]    [bold white]██   ██[/bold white] [bold white]██[/bold white]   [bold white]██[/bold white]    [bold white]██[/bold white]    [bold white]██[/bold white]  [bold white]██[/bold white] [bold white]██[/bold white]      [bold white]████[/bold white]  [bold white]██[/bold white]    [bold white]██[/bold white]   [bold white]██   ██[/bold white]   [bold blue]│[/bold blue]
+[bold bright_blue]    │[/bold bright_blue]    [bold white]███████[/bold white] [bold white]██[/bold white]   [bold white]██[/bold white]    [bold white]██[/bold white]    [bold white]██████[/bold white] [bold white]█████[/bold white]   [bold white]██[/bold white] [bold white]██[/bold white] [bold white]██[/bold white]    [bold white]██[/bold white]    [bold white]█████[/bold white]    [bold bright_blue]│[/bold bright_blue]
+[bold blue]    │[/bold blue]    [bold white]██   ██[/bold white] [bold white]██[/bold white]   [bold white]██[/bold white]    [bold white]██[/bold white]    [bold white]██[/bold white]  [bold white]██[/bold white] [bold white]██[/bold white]      [bold white]██[/bold white]  [bold white]████[/bold white]    [bold white]██[/bold white]   [bold white]██   ██[/bold white]   [bold blue]│[/bold blue]
+[bold cyan]    │[/bold cyan]    [bold white]██   ██[/bold white]  [bold white]█████[/bold white]     [bold white]██[/bold white]    [bold white]██[/bold white]  [bold white]██[/bold white] [bold white]███████[/bold white] [bold white]██[/bold white]   [bold white]███[/bold white]    [bold white]██[/bold white]    [bold white]█████[/bold white]    [bold cyan]│[/bold cyan]
+[bold bright_cyan]    │[/bold bright_cyan]                                                              [bold bright_cyan]│[/bold bright_cyan]
+[bold bright_cyan]    ╰──────────────────────────────────────────────────────────────╯[/bold bright_cyan]
+"""
+    return banner
+
+def print_enhanced_banner():
+    """Print the enhanced homepage banner"""
     console.print()
-    for i, line in enumerate(banner_lines):
-        color = colors[i % len(colors)]
-        console.print(f"[{color}]{line}[/{color}]")
+    console.print(get_gradient_banner())
     
-    console.print()
-    console.print("[bold white]          ╔═══════════════════════════════════════════════════════╗[/bold white]")
-    console.print(f"[bold white]          ║[/bold white]  [bold cyan]🔒 Privacy-First Security Scanner[/bold cyan]  [dim]v{__version__}[/dim]       [bold white]║[/bold white]")
-    console.print("[bold white]          ║[/bold white]  [dim]Your code stays local • AI-powered validation[/dim]  [bold white]║[/bold white]")
-    console.print("[bold white]          ╚═══════════════════════════════════════════════════════╝[/bold white]")
+    # Tagline box
+    tagline = Panel(
+        Align.center(
+            f"[bold cyan]🔒 Privacy-First Security Scanner[/bold cyan]  [dim]v{__version__}[/dim]\n"
+            "[dim]Your code stays local • AI-powered vulnerability detection[/dim]"
+        ),
+        border_style="bright_black",
+        padding=(0, 2)
+    )
+    console.print(tagline)
     console.print()
 
 def print_mini_header():
-    """Print minimal header"""
+    """Print minimal header for sub-pages"""
     console.print()
-    console.print(f"[bold cyan]󰒃 authent8[/bold cyan] [dim]v{__version__}[/dim]")
+    console.print(f"[bold cyan]🔒 authent8[/bold cyan] [dim]v{__version__}[/dim]")
     console.print()
+
+def get_tool_status():
+    """Get status of installed tools"""
+    tools = {
+        'trivy': is_installed('trivy'),
+        'semgrep': is_installed('semgrep'),
+        'gitleaks': is_installed('gitleaks')
+    }
+    return tools
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MAIN MENU - ENHANCED
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def show_main_menu():
+    """Display enhanced main menu"""
+    clear_screen()
+    print_enhanced_banner()
+    
+    # Tool status indicators
+    tools = get_tool_status()
+    tool_icons = []
+    for name, installed in tools.items():
+        if installed:
+            tool_icons.append(f"[green]●[/green] {name}")
+        else:
+            tool_icons.append(f"[red]○[/red] {name}")
+    
+    console.print(f"    [dim]Scanners:[/dim] {' │ '.join(tool_icons)}")
+    console.print()
+    
+    # Recent scans history
+    recent = get_recent_scans(3)
+    if recent:
+        console.print("[dim]📜 Recent Scans:[/dim]")
+        for scan in recent:
+            try:
+                ts = datetime.fromisoformat(scan['timestamp'])
+                time_str = ts.strftime("%m/%d %H:%M")
+                path_short = scan['path'].split('/')[-1][:20]
+                findings = scan.get('findings', 0)
+                crit = scan.get('critical', 0)
+                high = scan.get('high', 0)
+                
+                if crit > 0:
+                    status = f"[red]🔴 {crit}C/{high}H[/red]"
+                elif high > 0:
+                    status = f"[yellow]🟠 {high}H[/yellow]"
+                elif findings > 0:
+                    status = f"[blue]{findings} issues[/blue]"
+                else:
+                    status = "[green]✓ Clean[/green]"
+                
+                console.print(f"    [dim]{time_str}[/dim] {path_short}/ {status}")
+            except:
+                pass
+        console.print()
+    
+    # Menu options - cleaner grid layout
+    menu_table = Table(
+        show_header=False,
+        box=None,
+        padding=(0, 3),
+        expand=True
+    )
+    menu_table.add_column(justify="left", width=40)
+    menu_table.add_column(justify="left", width=40)
+    
+    menu_table.add_row(
+        "[bold yellow]1[/bold yellow]  [green]⚡ Quick Scan[/green]\n   [dim]Scan current directory[/dim]",
+        "[bold yellow]2[/bold yellow]  [cyan]📂 Browse & Select[/cyan]\n   [dim]Choose a directory to scan[/dim]"
+    )
+    menu_table.add_row("", "")
+    menu_table.add_row(
+        "[bold yellow]3[/bold yellow]  [blue]📝 Enter Path[/blue]\n   [dim]Type a specific path[/dim]",
+        "[bold yellow]4[/bold yellow]  [magenta]📖 Help[/magenta]\n   [dim]Commands & examples[/dim]"
+    )
+    menu_table.add_row("", "")
+    menu_table.add_row(
+        "[bold yellow]5[/bold yellow]  [white]⚙️  Settings[/white]\n   [dim]View configuration[/dim]",
+        "[bold yellow]q[/bold yellow]  [red]Exit[/red]\n   [dim]Quit authent8[/dim]"
+    )
+    
+    console.print(Panel(menu_table, border_style="cyan", padding=(1, 2)))
+    
+    # Pro tips - compact
+    console.print()
+    console.print("[dim]💡 Tips: [cyan]--no-ai[/cyan] for fast scans • [cyan]-v[/cyan] verbose • [cyan]-o file.json[/cyan] save report[/dim]")
+    console.print()
+    
+    return Prompt.ask("[bold cyan]Select[/bold cyan]", choices=["1", "2", "3", "4", "5", "q"], default="1")
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCAN OPTIONS - STREAMLINED
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_scan_options() -> dict:
+    """Interactive prompt for scan options"""
+    console.print()
+    console.print(Panel(
+        "[bold]Scan Options[/bold]",
+        border_style="cyan",
+        padding=(0, 1)
+    ))
+    
+    # AI validation
+    use_ai = Confirm.ask("  [cyan]Enable AI validation?[/cyan]", default=True)
+    
+    # Verbose output
+    verbose = Confirm.ask("  [cyan]Show all findings?[/cyan]", default=False)
+    
+    # Save to file
+    save_report = Confirm.ask("  [cyan]Save report to file?[/cyan]", default=False)
+    output = None
+    if save_report:
+        output = Prompt.ask("  [cyan]Filename[/cyan]", default="authent8_report.json")
+    
+    console.print()
+    return {
+        'no_ai': not use_ai,
+        'verbose': verbose,
+        'output': output
+    }
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HELP PAGE - ENHANCED
+# ═══════════════════════════════════════════════════════════════════════════════
 
 def show_help():
     """Display comprehensive help guide"""
     clear_screen()
     print_mini_header()
     
-    help_content = f"""
-[bold cyan]═══════════════════════════════════════════════════════════════════════════════
-                              AUTHENT8 HELP GUIDE
-═══════════════════════════════════════════════════════════════════════════════[/bold cyan]
+    help_content = """
+[bold cyan]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold cyan]
+[bold white]                              AUTHENT8 HELP[/bold white]
+[bold cyan]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold cyan]
 
-[bold yellow]🚀 QUICK START[/bold yellow]
-─────────────────────────────────────────────────────────────────────────────────
-  Run the tool interactively:
-  [green]$ authent8[/green]
+[bold yellow]QUICK START[/bold yellow]
+  [green]$ authent8[/green]                        Interactive mode
+  [green]$ authent8 scan ./project[/green]        Direct scan
 
-  Or scan directly:
-  [green]$ authent8 scan /path/to/project[/green]
+[bold yellow]COMMANDS[/bold yellow]
+  [cyan]scan <path>[/cyan]      Scan directory for vulnerabilities
+  [cyan]browse[/cyan]           Interactive directory browser
+  [cyan]config[/cyan]           View settings
 
-[bold yellow]📋 COMMANDS[/bold yellow]
-─────────────────────────────────────────────────────────────────────────────────
-  [cyan]scan <path>[/cyan]     Scan a directory for security vulnerabilities
-  [cyan]browse[/cyan]          Interactive directory browser
-  [cyan]config[/cyan]          View current configuration
-  [cyan]run[/cyan]             Interactive mode (default)
+[bold yellow]OPTIONS[/bold yellow]
+  [cyan]--no-ai[/cyan]          Skip AI (faster: ~5s vs ~30s)
+  [cyan]-v, --verbose[/cyan]    Show all findings
+  [cyan]-o, --output[/cyan]     Save JSON report
 
-[bold yellow]⚙️  OPTIONS[/bold yellow]
-─────────────────────────────────────────────────────────────────────────────────
-  [cyan]--no-ai[/cyan]         Skip AI validation (faster scan, ~5s vs ~30s)
-  [cyan]-v, --verbose[/cyan]   Show all findings (default shows top 8)
-  [cyan]-o, --output[/cyan]    Save full report to JSON file
+[bold yellow]EXAMPLES[/bold yellow]
+  [green]$ authent8 scan ./app --no-ai[/green]           Fast scan
+  [green]$ authent8 scan ./src -v -o report.json[/green]  Full report
 
-[bold yellow]📊 EXAMPLES[/bold yellow]
-─────────────────────────────────────────────────────────────────────────────────
-  [dim]# Quick scan without AI[/dim]
-  [green]$ authent8 scan ./my-project --no-ai[/green]
+[bold yellow]SCANNERS[/bold yellow]
+  [cyan]Trivy[/cyan]       Dependencies & CVEs
+  [cyan]Semgrep[/cyan]     Code security patterns  
+  [cyan]Gitleaks[/cyan]    Secrets & API keys
 
-  [dim]# Full scan with verbose output[/dim]
-  [green]$ authent8 scan ./my-project -v[/green]
-
-  [dim]# Save report to file[/dim]
-  [green]$ authent8 scan ./my-project -o report.json[/green]
-
-  [dim]# Combine options[/dim]
-  [green]$ authent8 scan ./src -v -o findings.json[/green]
-
-[bold yellow]🔧 SCANNERS[/bold yellow]
-─────────────────────────────────────────────────────────────────────────────────
-  [cyan]Trivy[/cyan]       Vulnerability scanner for dependencies & CVEs
-  [cyan]Semgrep[/cyan]     Static analysis for code security patterns  
-  [cyan]Gitleaks[/cyan]    Secret detection (API keys, passwords, tokens)
-
-[bold yellow]🔐 PRIVACY[/bold yellow]
-─────────────────────────────────────────────────────────────────────────────────
-  • Your code NEVER leaves your machine
-  • Only anonymized finding metadata is sent to AI
-  • No telemetry or usage tracking
-  • Fully offline scan possible with --no-ai
-
-[dim]Press Enter to return to menu...[/dim]
+[bold yellow]PRIVACY[/bold yellow]
+  • Code NEVER leaves your machine
+  • Only finding metadata sent to AI
+  • Use --no-ai for fully offline scans
 """
     console.print(help_content)
+    console.print("[dim]Press Enter to return...[/dim]")
     input()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONFIGURATION PAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def show_config():
+    """Display current configuration"""
+    clear_screen()
+    print_mini_header()
+    
+    console.print("[bold]⚙️  Configuration[/bold]")
+    console.print()
+    
+    ai_model = os.getenv("AI_MODEL", "gpt-4o")
+    ai_base = os.getenv("OPENAI_BASE_URL", "OpenAI default")
+    ai_key = "✓ Set" if os.getenv("OPENAI_API_KEY") else "✗ Not set"
+    gh_token = "✓ Set" if os.getenv("GITHUB_TOKEN") else "✗ Not set"
+    
+    # Settings table
+    table = Table(box=box.ROUNDED, show_header=True, header_style="bold")
+    table.add_column("Setting", style="cyan", width=20)
+    table.add_column("Value", width=30)
+    table.add_column("Status", width=10)
+    
+    table.add_row("AI Model", ai_model, "[green]●[/green]" if ai_key == "✓ Set" else "[yellow]○[/yellow]")
+    table.add_row("OpenAI Key", ai_key, "[green]✓[/green]" if "✓" in ai_key else "[red]✗[/red]")
+    table.add_row("GitHub Token", gh_token, "[green]✓[/green]" if "✓" in gh_token else "[dim]-[/dim]")
+    
+    console.print(table)
+    console.print()
+    
+    # Tools status
+    console.print("[bold]Installed Tools:[/bold]")
+    tools = get_tool_status()
+    for name, installed in tools.items():
+        status = "[green]● Installed[/green]" if installed else "[red]○ Missing[/red]"
+        console.print(f"  {name}: {status}")
+    
+    console.print()
+    console.print("[dim]Configure via environment variables or .env file[/dim]")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # INTERACTIVE PATH SELECTOR
@@ -178,21 +378,28 @@ def show_help():
 def get_dir_info(path: Path) -> dict:
     """Get directory stats"""
     try:
-        files = list(path.rglob('*'))
-        file_count = sum(1 for f in files if f.is_file())
-        dir_count = sum(1 for f in files if f.is_dir())
+        # Exclude common non-scannable dirs for performance
+        exclude = {'node_modules', '.git', 'dist', 'build', '__pycache__', '.venv', 'venv'}
         
+        files = []
+        dirs = 0
         extensions = {}
-        for f in files:
-            if f.is_file():
-                ext = f.suffix.lower() or 'no ext'
+        
+        for item in path.iterdir():
+            if item.name in exclude:
+                continue
+            if item.is_dir():
+                dirs += 1
+            elif item.is_file():
+                files.append(item)
+                ext = item.suffix.lower() or 'no ext'
                 extensions[ext] = extensions.get(ext, 0) + 1
         
-        top_ext = sorted(extensions.items(), key=lambda x: -x[1])[:5]
+        top_ext = sorted(extensions.items(), key=lambda x: -x[1])[:3]
         
         return {
-            'files': file_count,
-            'dirs': dir_count,
+            'files': len(files),
+            'dirs': dirs,
             'extensions': top_ext,
             'scannable': any(ext in ['.py', '.js', '.ts', '.java', '.go', '.rb', '.php', '.cs'] 
                            for ext in extensions.keys())
@@ -209,20 +416,17 @@ def interactive_path_selector() -> Path:
         clear_screen()
         print_mini_header()
         
-        console.print("[bold]📁 SELECT TARGET DIRECTORY[/bold]")
+        console.print("[bold]📂 SELECT DIRECTORY[/bold]")
         console.print()
-        console.print(f"[cyan]📍 Current:[/cyan] {current_path}")
+        console.print(f"[cyan]📍[/cyan] {current_path}")
         
         info = get_dir_info(current_path)
-        console.print(f"[dim]   {info['files']} files, {info['dirs']} subdirectories[/dim]")
-        
         if info['extensions']:
-            ext_str = ", ".join([f"{e[0]}({e[1]})" for e in info['extensions']])
-            console.print(f"[dim]   Types: {ext_str}[/dim]")
+            ext_str = ", ".join([f"{e[0]}" for e in info['extensions']])
+            console.print(f"[dim]   {info['files']} files • {info['dirs']} dirs • {ext_str}[/dim]")
         
         console.print()
-        console.print("[dim]─" * 60 + "[/dim]")
-        console.print()
+        console.print("[dim]─" * 50 + "[/dim]")
         
         try:
             entries = sorted(current_path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower()))
@@ -234,43 +438,31 @@ def interactive_path_selector() -> Path:
         options = {}
         
         if current_path != current_path.parent:
-            console.print(f"  [yellow]0.[/yellow] [dim]📁 ..[/dim]  [dim](parent)[/dim]")
+            console.print(f"  [yellow]0[/yellow] [dim]📁 ..[/dim]")
             options['0'] = current_path.parent
         
-        for i, subdir in enumerate(subdirs[:9], 1):
+        for i, subdir in enumerate(subdirs[:8], 1):
             sub_info = get_dir_info(subdir)
-            indicator = "📁" if sub_info['scannable'] else "📂"
-            scannable_mark = " [green]●[/green]" if sub_info['scannable'] else ""
-            console.print(f"  [yellow]{i}.[/yellow] {indicator} {subdir.name}/  [dim]({sub_info['files']} files){scannable_mark}[/dim]")
+            mark = "[green]●[/green]" if sub_info['scannable'] else "[dim]○[/dim]"
+            console.print(f"  [yellow]{i}[/yellow] 📁 {subdir.name}/ {mark}")
             options[str(i)] = subdir
         
-        if len(subdirs) > 9:
-            console.print(f"  [dim]   ... +{len(subdirs) - 9} more directories[/dim]")
+        if len(subdirs) > 8:
+            console.print(f"  [dim]+{len(subdirs) - 8} more[/dim]")
         
         console.print()
-        console.print("[dim]─" * 60 + "[/dim]")
-        console.print()
-        
-        console.print("[bold]Actions:[/bold]")
-        console.print(f"  [green]s[/green] = [bold]Scan this directory[/bold]")
-        console.print(f"  [cyan]p[/cyan] = Enter path manually")
-        console.print(f"  [cyan]h[/cyan] = Home directory")
-        console.print(f"  [red]q[/red] = Quit")
+        console.print("[dim]─" * 50 + "[/dim]")
+        console.print(f"  [green]s[/green] Scan here  [cyan]p[/cyan] Enter path  [cyan]h[/cyan] Home  [red]q[/red] Back")
         console.print()
         
         choice = Prompt.ask("[bold cyan]>[/bold cyan]", default="s").strip().lower()
         
         if choice == 'q':
-            console.print("\n[yellow]Goodbye![/yellow]")
-            sys.exit(0)
+            return None
         elif choice == 's':
-            if info['files'] == 0:
-                console.print("[yellow]⚠ This directory is empty![/yellow]")
-                time.sleep(1)
-                continue
             return current_path
         elif choice == 'p':
-            manual = Prompt.ask("[cyan]Enter path[/cyan]")
+            manual = Prompt.ask("[cyan]Path[/cyan]")
             p = Path(manual).expanduser().resolve()
             if p.exists() and p.is_dir():
                 history.append(current_path)
@@ -284,12 +476,9 @@ def interactive_path_selector() -> Path:
         elif choice in options:
             history.append(current_path)
             current_path = options[choice].resolve()
-        else:
-            console.print("[yellow]Invalid option[/yellow]")
-            time.sleep(0.5)
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PROGRESS TRACKING SCANNER
+# SCANNING & RESULTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, verbose: bool = False):
@@ -306,7 +495,6 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
     
     all_files = []
     for f in project_path.rglob('*'):
-        # Skip excluded directories
         if any(excl in f.parts for excl in exclude_dirs):
             continue
         if f.is_file() and f.suffix in ['.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rb', '.php', 
@@ -314,13 +502,13 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
                                          '.yml', '.json', '.xml', '.sh', '.bash', '.sql', '.html', '.css']:
             all_files.append(f)
     
-    scannable_files = all_files
-    total_files = len(scannable_files)
+    total_files = len(all_files)
     
+    # Scan header
     console.print(Panel(
         f"[bold]Target:[/bold] {path}\n"
-        f"[dim]Files to scan: {total_files}  │  AI validation: {'ON' if not no_ai else 'OFF'}[/dim]",
-        title="[bold cyan]󰒃 Scan Starting[/bold cyan]",
+        f"[dim]Files: {total_files} │ AI: {'ON' if not no_ai else 'OFF'}[/dim]",
+        title="[bold cyan]🔍 Scanning[/bold cyan]",
         border_style="cyan"
     ))
     console.print()
@@ -337,55 +525,31 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
     
     with Progress(
         SpinnerColumn(),
-        TextColumn("[bold blue]{task.description}[/bold blue]"),
-        BarColumn(bar_width=30),
+        TextColumn("[bold]{task.description}[/bold]"),
+        BarColumn(bar_width=25, complete_style="cyan"),
         TaskProgressColumn(),
         TimeElapsedColumn(),
         console=console,
         transient=False
     ) as progress:
         
-        # TRIVY SCAN
-        trivy_task = progress.add_task("[cyan]Trivy[/cyan] - Dependencies & CVEs", total=100)
-        progress.update(trivy_task, description="[cyan]Trivy[/cyan] - Scanning dependencies...")
-        
-        trivy_start = time.time()
+        # TRIVY
+        trivy_task = progress.add_task("[cyan]Trivy[/cyan]", total=100)
         trivy_findings = orchestrator.run_trivy()
-        trivy_time = time.time() - trivy_start
+        scanner_stats['trivy'] = len(trivy_findings)
+        progress.update(trivy_task, completed=100, description=f"[green]Trivy ✓[/green] {len(trivy_findings)}")
         
-        scanner_stats['trivy'] = {'findings': len(trivy_findings), 'time': trivy_time}
-        progress.update(trivy_task, completed=100, 
-                       description=f"[green]Trivy[/green] ✓ {len(trivy_findings)} findings")
-        
-        # SEMGREP SCAN  
-        semgrep_task = progress.add_task("[blue]Semgrep[/blue] - Code patterns", total=100)
-        
-        semgrep_start = time.time()
-        
-        for i, f in enumerate(scannable_files[:min(10, len(scannable_files))]):
-            progress.update(semgrep_task, 
-                          completed=int((i+1) / min(10, len(scannable_files)) * 50),
-                          description=f"[blue]Semgrep[/blue] - {f.name[:30]}...")
-            time.sleep(0.1)
-        
+        # SEMGREP  
+        semgrep_task = progress.add_task("[blue]Semgrep[/blue]", total=100)
         semgrep_findings = orchestrator.run_semgrep()
-        semgrep_time = time.time() - semgrep_start
+        scanner_stats['semgrep'] = len(semgrep_findings)
+        progress.update(semgrep_task, completed=100, description=f"[green]Semgrep ✓[/green] {len(semgrep_findings)}")
         
-        scanner_stats['semgrep'] = {'findings': len(semgrep_findings), 'time': semgrep_time}
-        progress.update(semgrep_task, completed=100,
-                       description=f"[green]Semgrep[/green] ✓ {len(semgrep_findings)} findings")
-        
-        # GITLEAKS SCAN
-        gitleaks_task = progress.add_task("[magenta]Gitleaks[/magenta] - Secrets", total=100)
-        progress.update(gitleaks_task, description="[magenta]Gitleaks[/magenta] - Scanning for secrets...")
-        
-        gitleaks_start = time.time()
+        # GITLEAKS
+        gitleaks_task = progress.add_task("[magenta]Gitleaks[/magenta]", total=100)
         gitleaks_findings = orchestrator.run_gitleaks()
-        gitleaks_time = time.time() - gitleaks_start
-        
-        scanner_stats['gitleaks'] = {'findings': len(gitleaks_findings), 'time': gitleaks_time}
-        progress.update(gitleaks_task, completed=100,
-                       description=f"[green]Gitleaks[/green] ✓ {len(gitleaks_findings)} findings")
+        scanner_stats['gitleaks'] = len(gitleaks_findings)
+        progress.update(gitleaks_task, completed=100, description=f"[green]Gitleaks ✓[/green] {len(gitleaks_findings)}")
         
         all_findings = trivy_findings + semgrep_findings + gitleaks_findings
         
@@ -393,47 +557,47 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
         if not no_ai and all_findings:
             api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GITHUB_TOKEN")
             if api_key:
-                ai_task = progress.add_task("[yellow]AI[/yellow] - Validating findings", total=len(all_findings))
+                ai_task = progress.add_task("[yellow]AI Validation[/yellow]", total=len(all_findings))
                 
                 try:
                     validator = AIValidator(api_key)
-                    
                     batch_size = 3
                     validated_findings = []
                     
                     for i in range(0, len(all_findings), batch_size):
                         batch = all_findings[i:i+batch_size]
-                        progress.update(ai_task, 
-                                       completed=i,
-                                       description=f"[yellow]AI[/yellow] - Analyzing finding {i+1}/{len(all_findings)}...")
-                        
+                        progress.update(ai_task, completed=i, description=f"[yellow]AI[/yellow] {i}/{len(all_findings)}")
                         validated_batch = validator._validate_batch(batch)
                         validated_findings.extend(validated_batch)
                     
                     all_findings = validated_findings
                     false_positives = sum(1 for f in all_findings if f.get("is_false_positive"))
-                    
                     progress.update(ai_task, completed=len(all_findings),
-                                   description=f"[green]AI[/green] ✓ Removed {false_positives} false positives")
-                    
+                                   description=f"[green]AI ✓[/green] -{false_positives} FP")
                 except Exception as e:
                     progress.update(ai_task, completed=len(all_findings),
-                                   description=f"[yellow]AI[/yellow] ⚠ Skipped: {str(e)[:30]}")
+                                   description=f"[yellow]AI ⚠[/yellow] {str(e)[:20]}")
     
     real_findings = [f for f in all_findings if not f.get("is_false_positive", False)]
     total_time = time.time() - start_time
     
-    console.print()
+    # Count severities for history
+    crit_count = sum(1 for f in real_findings if f.get("severity") == "CRITICAL")
+    high_count = sum(1 for f in real_findings if f.get("severity") == "HIGH")
     
-    display_results_with_ai(real_findings, scanner_stats, total_time, verbose)
+    # Save to history
+    add_to_history(path, len(real_findings), crit_count, high_count, total_time)
+    
+    console.print()
+    display_results(real_findings, scanner_stats, total_time, verbose)
     
     if output:
         with open(output, 'w') as f:
             json.dump(all_findings, f, indent=2)
-        console.print(f"\n[dim]📄 Full report saved to {output}[/dim]")
+        console.print(f"[dim]📄 Saved to {output}[/dim]")
 
-def display_results_with_ai(findings: list, scanner_stats: dict, total_time: float, verbose: bool = False):
-    """Display scan results with AI confidence and fix suggestions"""
+def display_results(findings: list, scanner_stats: dict, total_time: float, verbose: bool = False):
+    """Display scan results"""
     
     by_severity = {
         'CRITICAL': [f for f in findings if f.get("severity") == "CRITICAL"],
@@ -442,53 +606,47 @@ def display_results_with_ai(findings: list, scanner_stats: dict, total_time: flo
         'LOW': [f for f in findings if f.get("severity") == "LOW"],
     }
     
+    # No findings = success
     if not findings:
         console.print(Panel(
             "[bold green]✓ NO VULNERABILITIES FOUND[/bold green]\n\n"
-            "[dim]Your code looks secure! All scanners completed successfully.[/dim]",
+            "[dim]Your code looks secure![/dim]",
             title="[bold]Scan Complete[/bold]",
             border_style="green"
         ))
         console.print()
-        console.print("[dim]🔒 Your code stayed local • 0 bytes sent externally[/dim]")
+        console.print("[dim]🔒 Your code stayed local[/dim]")
         console.print()
         return
     
+    # Summary
     crit = len(by_severity['CRITICAL'])
     high = len(by_severity['HIGH'])
     med = len(by_severity['MEDIUM'])
     low = len(by_severity['LOW'])
     
-    severity_line = []
-    if crit: severity_line.append(f"[bold red]{crit} CRITICAL[/bold red]")
-    if high: severity_line.append(f"[yellow]{high} HIGH[/yellow]")
-    if med: severity_line.append(f"[blue]{med} MEDIUM[/blue]")
-    if low: severity_line.append(f"[dim]{low} LOW[/dim]")
+    severity_parts = []
+    if crit: severity_parts.append(f"[bold red]{crit} CRITICAL[/bold red]")
+    if high: severity_parts.append(f"[yellow]{high} HIGH[/yellow]")
+    if med: severity_parts.append(f"[blue]{med} MEDIUM[/blue]")
+    if low: severity_parts.append(f"[dim]{low} LOW[/dim]")
     
     status_color = "red" if crit else ("yellow" if high else "blue")
     
-    stats_line = " │ ".join([
-        f"trivy: {scanner_stats.get('trivy', {}).get('findings', 0)}",
-        f"semgrep: {scanner_stats.get('semgrep', {}).get('findings', 0)}",
-        f"gitleaks: {scanner_stats.get('gitleaks', {}).get('findings', 0)}"
-    ])
-    
     console.print(Panel(
         f"[bold]Found {len(findings)} issues[/bold]\n"
-        f"{' • '.join(severity_line)}\n\n"
-        f"[dim]Scanners: {stats_line}[/dim]\n"
+        f"{' • '.join(severity_parts)}\n\n"
         f"[dim]Time: {total_time:.1f}s[/dim]",
-        title="[bold]Scan Complete[/bold]",
+        title="[bold]Results[/bold]",
         border_style=status_color
     ))
     
+    # Findings table
     console.print()
-    
-    table = Table(box=box.ROUNDED, show_header=True, header_style="bold", padding=(0, 1))
-    table.add_column("", width=3)
-    table.add_column("Issue", max_width=35, overflow="ellipsis")
-    table.add_column("Location", max_width=18, overflow="ellipsis")
-    table.add_column("Conf", width=4, justify="center")
+    table = Table(box=box.SIMPLE, show_header=True, header_style="bold", padding=(0, 1))
+    table.add_column("", width=2)
+    table.add_column("Issue", max_width=40, overflow="ellipsis")
+    table.add_column("Location", max_width=20, overflow="ellipsis")
     table.add_column("Tool", width=8)
     
     sorted_findings = sorted(
@@ -496,180 +654,71 @@ def display_results_with_ai(findings: list, scanner_stats: dict, total_time: flo
         key=lambda x: {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}.get(x.get("severity", "LOW"), 4)
     )
     
-    display_limit = 8 if not verbose else 25
+    display_limit = 10 if not verbose else 30
     
     for finding in sorted_findings[:display_limit]:
         severity = finding.get("severity", "?")
-        tool = finding.get("tool", "")[:8]
-        message = finding.get("message", finding.get("description", ""))[:35].replace("\n", " ").strip()
+        message = finding.get("message", finding.get("description", ""))[:40].replace("\n", " ").strip()
         file_loc = Path(finding.get("file", "unknown")).name
         line = finding.get("line", "")
         location = f"{file_loc}:{line}" if line else file_loc
-        
-        confidence = finding.get("ai_confidence", 0)
-        if confidence >= 80:
-            conf_display = f"[green]{confidence}%[/green]"
-        elif confidence >= 50:
-            conf_display = f"[yellow]{confidence}%[/yellow]"
-        elif confidence > 0:
-            conf_display = f"[red]{confidence}%[/red]"
-        else:
-            conf_display = "[dim]--[/dim]"
+        tool = finding.get("tool", "")[:8]
         
         sev_icon = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "⚪"}.get(severity, "⚪")
         
-        table.add_row(
-            sev_icon,
-            message,
-            f"[dim]{location}[/dim]",
-            conf_display,
-            f"[dim]{tool}[/dim]"
-        )
+        table.add_row(sev_icon, message, f"[dim]{location}[/dim]", f"[dim]{tool}[/dim]")
     
     console.print(table)
     
     remaining = len(findings) - display_limit
     if remaining > 0:
-        console.print(f"\n[dim]  +{remaining} more issues (use -v for all, or -o report.json to save)[/dim]")
+        console.print(f"[dim]+{remaining} more (use -v)[/dim]")
     
-    # AI Fix Suggestions
-    console.print()
-    console.print("[bold cyan]💡 AI Fix Suggestions[/bold cyan]")
-    console.print("[dim]─" * 60 + "[/dim]")
-    
-    suggestions_shown = 0
-    for finding in sorted_findings:
-        fix = finding.get("fix_suggestion", "")
-        reasoning = finding.get("ai_reasoning", "")
-        confidence = finding.get("ai_confidence", 0)
+    # AI suggestions - show ALL findings with suggestions (grouped by file)
+    findings_with_fixes = [f for f in sorted_findings if f.get("fix_suggestion")]
+    if findings_with_fixes:
+        console.print()
+        console.print("[bold cyan]💡 Fix Suggestions (All Issues)[/bold cyan]")
+        console.print()
         
-        if fix and suggestions_shown < 5:
-            severity = finding.get("severity", "?")
-            file_loc = Path(finding.get("file", "unknown")).name
-            line = finding.get("line", "")
+        # Group by file for cleaner display
+        by_file = {}
+        for f in findings_with_fixes:
+            file_loc = Path(f.get("file", "unknown")).name
+            if file_loc not in by_file:
+                by_file[file_loc] = []
+            by_file[file_loc].append(f)
+        
+        # Display limit per file in non-verbose, all in verbose
+        max_per_file = 10 if verbose else 3
+        
+        for file_name, file_findings in by_file.items():
+            console.print(f"  [bold]{file_name}[/bold]")
+            displayed = 0
+            for finding in file_findings[:max_per_file]:
+                line = finding.get("line", "?")
+                fix = finding.get("fix_suggestion", "")
+                # Truncate if needed but show full suggestion
+                if len(fix) > 80 and not verbose:
+                    fix = fix[:77] + "..."
+                console.print(f"    [dim]L{line}:[/dim] {fix}")
+                displayed += 1
             
-            sev_color = {"CRITICAL": "red", "HIGH": "yellow", "MEDIUM": "blue", "LOW": "dim"}.get(severity, "dim")
-            
-            console.print(f"\n  [{sev_color}]● {severity}[/{sev_color}] [dim]{file_loc}:{line}[/dim]")
-            console.print(f"    [green]Fix:[/green] {fix[:80]}")
-            if reasoning:
-                console.print(f"    [dim]Why: {reasoning[:60]}[/dim]")
-            if confidence:
-                console.print(f"    [dim]Confidence: {confidence}%[/dim]")
-            
-            suggestions_shown += 1
+            remaining = len(file_findings) - displayed
+            if remaining > 0:
+                console.print(f"    [dim]+{remaining} more fixes (use -v)[/dim]")
+            console.print()
     
-    if suggestions_shown == 0:
-        console.print("[dim]  No AI suggestions available. Run with AI enabled for insights.[/dim]")
+    # Warning panel
+    console.print()
+    if crit:
+        console.print(Panel("[bold red]⚠ CRITICAL[/bold red] - Fix immediately!", border_style="red"))
+    elif high:
+        console.print(Panel("[yellow]⚠ HIGH RISK[/yellow] - Review before deploy", border_style="yellow"))
     
     console.print()
-    if by_severity['CRITICAL']:
-        console.print(Panel("[bold red]⚠ CRITICAL ISSUES[/bold red] - Immediate action required!", border_style="red"))
-    elif by_severity['HIGH']:
-        console.print(Panel("[yellow]⚠ HIGH RISK[/yellow] - Review recommended before deployment", border_style="yellow"))
-    elif findings:
-        console.print(Panel("[blue]ℹ Issues found[/blue] - Consider reviewing before release", border_style="blue"))
-    
+    console.print("[dim]🔒 Your code stayed local[/dim]")
     console.print()
-    console.print("[dim]🔒 Your code stayed local • 0 bytes sent externally[/dim]")
-    console.print()
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MAIN MENU
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def get_scan_options() -> dict:
-    """Interactive prompt for scan options (--no-ai, -v, -o)"""
-    console.print()
-    console.print("[bold]⚙️  Scan Options[/bold]")
-    console.print("[dim]─" * 40 + "[/dim]")
-    
-    # AI validation
-    use_ai = Confirm.ask("  [cyan]Enable AI validation?[/cyan]", default=True)
-    
-    # Verbose output
-    verbose = Confirm.ask("  [cyan]Show all findings (verbose)?[/cyan]", default=False)
-    
-    # Save to file
-    save_report = Confirm.ask("  [cyan]Save report to file?[/cyan]", default=False)
-    output = None
-    if save_report:
-        output = Prompt.ask("  [cyan]Output filename[/cyan]", default="authent8_report.json")
-    
-    console.print()
-    return {
-        'no_ai': not use_ai,
-        'verbose': verbose,
-        'output': output
-    }
-
-def show_main_menu():
-    """Display enhanced main menu with 3D banner"""
-    clear_screen()
-    print_3d_banner()
-    
-    menu_content = """
-[bold]What would you like to do?[/bold]
-
-  [bold yellow]1.[/bold yellow] [green]󰄬  Scan current directory[/green]
-     [dim]Quick scan of the directory you're in[/dim]
-
-  [bold yellow]2.[/bold yellow] [cyan]󰉋  Browse & select directory[/cyan]
-     [dim]Interactive file browser to choose target[/dim]
-
-  [bold yellow]3.[/bold yellow] [blue]󰗀  Enter path manually[/blue]
-     [dim]Type a specific path to scan[/dim]
-
-  [bold yellow]4.[/bold yellow] [magenta]󰋖  Help & documentation[/magenta]
-     [dim]Learn commands, options, and examples[/dim]
-
-  [bold yellow]5.[/bold yellow] [dim]󰒓  Configuration[/dim]
-     [dim]View current settings[/dim]
-
-  [bold yellow]q.[/bold yellow] [red]Exit[/red]
-"""
-    console.print(Panel(menu_content, border_style="cyan", padding=(0, 2)))
-    
-    console.print()
-    console.print("[bold dim]💡 Pro Tips:[/bold dim]")
-    console.print("[dim]  • Use [cyan]--no-ai[/cyan] for fast scans (~5s vs ~30s with AI)[/dim]")
-    console.print("[dim]  • Use [cyan]-v[/cyan] to see all findings, [cyan]-o report.json[/cyan] to save[/dim]")
-    console.print("[dim]  • Green dots [green]●[/green] in browser indicate scannable directories[/dim]")
-    console.print()
-    
-    return Prompt.ask("[bold cyan]Select option[/bold cyan]", choices=["1", "2", "3", "4", "5", "q"], default="2")
-
-def show_config():
-    """Display current configuration"""
-    clear_screen()
-    print_mini_header()
-    
-    console.print("[bold]⚙️  Configuration[/bold]")
-    console.print()
-    
-    ai_model = os.getenv("AI_MODEL", "gpt-4o")
-    ai_base = os.getenv("OPENAI_BASE_URL", "OpenAI default")
-    ai_key = "✓ Configured" if os.getenv("OPENAI_API_KEY") else "✗ Not set"
-    gh_token = "✓ Configured" if os.getenv("GITHUB_TOKEN") else "✗ Not set"
-    
-    table = Table(box=box.ROUNDED, show_header=True, header_style="bold")
-    table.add_column("Setting", style="cyan")
-    table.add_column("Value")
-    table.add_column("Status")
-    
-    table.add_row("AI Model", ai_model, "[green]Active[/green]" if ai_key == "✓ Configured" else "[yellow]Inactive[/yellow]")
-    table.add_row("API Base URL", ai_base[:40] + "..." if len(ai_base) > 40 else ai_base, "")
-    table.add_row("OpenAI API Key", ai_key, "[green]✓[/green]" if "✓" in ai_key else "[red]✗[/red]")
-    table.add_row("GitHub Token", gh_token, "[green]✓[/green]" if "✓" in gh_token else "[dim]-[/dim]")
-    
-    console.print(table)
-    console.print()
-    console.print("[dim]Set environment variables or create a .env file to configure.[/dim]")
-    console.print()
-    console.print("[bold]Required Tools (install separately):[/bold]")
-    console.print("  [cyan]trivy[/cyan]      - brew install trivy / apt install trivy")
-    console.print("  [cyan]semgrep[/cyan]    - pip install semgrep")
-    console.print("  [cyan]gitleaks[/cyan]   - brew install gitleaks / go install")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CLI COMMANDS
@@ -683,10 +732,7 @@ def cli(ctx):
     
     Scan your code for vulnerabilities using Trivy, Semgrep, and Gitleaks.
     AI-powered validation helps reduce false positives.
-    
-    Your code stays local - only anonymized metadata is sent to AI.
     """
-    # Check for first run and offer to install tools
     check_first_run()
     
     if ctx.invoked_subcommand is None:
@@ -699,71 +745,62 @@ def run():
         choice = show_main_menu()
         
         if choice == "q":
-            console.print("\n[cyan]Goodbye! Stay secure! 🔒[/cyan]\n")
+            console.print("\n[cyan]Goodbye! 🔒[/cyan]\n")
             sys.exit(0)
         
         elif choice == "1":
-            target = Path.cwd()
             options = get_scan_options()
-            run_scan_with_progress(str(target), **options)
-            input("\n[dim]Press Enter to continue...[/dim]")
+            run_scan_with_progress(str(Path.cwd()), **options)
+            input("\n[dim]Press Enter...[/dim]")
         
         elif choice == "2":
             target = interactive_path_selector()
-            options = get_scan_options()
-            run_scan_with_progress(str(target), **options)
-            input("\n[dim]Press Enter to continue...[/dim]")
+            if target:
+                options = get_scan_options()
+                run_scan_with_progress(str(target), **options)
+                input("\n[dim]Press Enter...[/dim]")
         
         elif choice == "3":
             console.print()
-            path_str = Prompt.ask("[cyan]Enter path to scan[/cyan]")
+            path_str = Prompt.ask("[cyan]Path[/cyan]")
             target = Path(path_str).expanduser().resolve()
             if not target.exists():
-                console.print("[red]Path does not exist![/red]")
-                time.sleep(2)
+                console.print("[red]Path not found![/red]")
+                time.sleep(1)
                 continue
             options = get_scan_options()
             run_scan_with_progress(str(target), **options)
-            input("\n[dim]Press Enter to continue...[/dim]")
+            input("\n[dim]Press Enter...[/dim]")
         
         elif choice == "4":
             show_help()
         
         elif choice == "5":
             show_config()
-            input("\n[dim]Press Enter to continue...[/dim]")
+            input("\n[dim]Press Enter...[/dim]")
 
 @cli.command()
 @click.argument('path', type=click.Path(exists=True), required=False)
-@click.option('--no-ai', is_flag=True, help='Skip AI validation (faster)')
-@click.option('--output', '-o', type=click.Path(), help='Save report to JSON file')
+@click.option('--no-ai', is_flag=True, help='Skip AI validation')
+@click.option('--output', '-o', type=click.Path(), help='Save JSON report')
 @click.option('--verbose', '-v', is_flag=True, help='Show all findings')
 def scan(path, no_ai, output, verbose):
-    """Scan a directory for vulnerabilities
-    
-    Examples:
-    
-        authent8 scan ./my-project
-        
-        authent8 scan ./src --no-ai
-        
-        authent8 scan ./app -v -o report.json
-    """
+    """Scan a directory for vulnerabilities"""
     if path is None:
-        path = str(interactive_path_selector())
-    
+        path = str(interactive_path_selector() or Path.cwd())
     run_scan_with_progress(path, no_ai, output, verbose)
 
 @cli.command()
 def browse():
     """Interactive directory browser"""
     target = interactive_path_selector()
-    use_ai = Confirm.ask("[cyan]Enable AI validation?[/cyan]", default=True)
-    run_scan_with_progress(str(target), no_ai=not use_ai)
+    if target:
+        use_ai = Confirm.ask("[cyan]Enable AI?[/cyan]", default=True)
+        run_scan_with_progress(str(target), no_ai=not use_ai)
 
 @cli.command()
 def config():
-    """Show current configuration"""
+    """Show configuration"""
     show_config()
 
 if __name__ == "__main__":
