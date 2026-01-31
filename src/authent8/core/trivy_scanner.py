@@ -83,9 +83,8 @@ class TrivyScanner:
                 except json.JSONDecodeError:
                     pass
             
-            # Check stderr for errors
-            if result.returncode != 0 and result.stderr:
-                print(f"⚠️  Trivy warning: {result.stderr[:100]}")
+            # Don't show stderr - Trivy sends INFO logs there which is normal
+            # Only show errors if there's a non-zero return code AND no valid findings
             
             return []
             

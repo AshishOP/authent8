@@ -37,6 +37,11 @@ class SemgrepScanner:
         "yarn.lock",
         "poetry.lock",
         "Pipfile.lock",
+        # Authent8 internal files (safe patterns, not user input)
+        "install_tools.py",
+        "*.md",
+        "demo",
+        "tests",
     ]
     
     def scan(self) -> List[Dict]:

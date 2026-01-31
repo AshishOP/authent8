@@ -257,6 +257,11 @@ paths = [
     '''__pycache__/''',
     '''\.next/''',
     '''\.nuxt/''',
+    # Environment files (should be in .gitignore, not committed)
+    '''\.env$''',
+    '''\.env\.local$''',
+    '''\.env\.development$''',
+    '''\.env\.production$''',
     # Test files
     '''.*test\..*''',
     '''.*spec\..*''',
@@ -265,6 +270,9 @@ paths = [
     '''.*sample\..*''',
     '''.*fixture.*''',
     '''.*testdata.*''',
+    # Demo/vulnerable app (intentional vulnerabilities for testing)
+    '''demo/''',
+    '''vulnerable-app/''',
     # Documentation
     '''.*\.md$''',
     '''docs/''',

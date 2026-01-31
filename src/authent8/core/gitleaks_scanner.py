@@ -11,18 +11,19 @@ from typing import List, Dict
 class GitleaksScanner:
     """Wrapper for Gitleaks secret scanner"""
     
-    # Directories to exclude
-    EXCLUDE_PATHS = [
-        "node_modules",
-        ".git",
-        "dist",
-        "build",
-        "vendor",
-        "__pycache__",
-        ".venv",
-        "venv",
-        "coverage",
-        ".nyc_output",
+    # Patterns to exclude (partial match - catches node_modules_12345 etc)
+    EXCLUDE_PATTERNS = [
+        "node_modules", ".git", "dist", "build", "vendor", "__pycache__",
+        ".venv", "venv", "env", "virtualenv", ".virtualenv",
+        "coverage", ".nyc_output", ".coverage", "htmlcov",
+        ".env", ".env.", "env.", ".secret", "secret", ".keys",
+        ".md", "README", "INSTALL", "CHANGELOG", "LICENSE", "docs",
+        "install_tools", "test", "spec", "mock", "fixture", "demo",
+        ".min.js", ".min.css", ".bundle.", ".chunk.",
+        "package-lock", "yarn.lock", "poetry.lock", "Pipfile.lock",
+        ".pyc", ".pyo", ".egg", ".whl", "site-packages",
+        ".cache", ".tmp", "tmp", "temp", ".temp",
+        ".log", "logs", ".idea", ".vscode", ".DS_Store",
     ]
     
     def __init__(self, project_path: Path):

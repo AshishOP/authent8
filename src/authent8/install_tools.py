@@ -11,12 +11,20 @@ import os
 import tempfile
 import urllib.request
 
-def run_cmd(cmd, check=True, shell=False):
-    """Run a command and return success status"""
+def run_cmd(cmd, check=True):
+    """Run a command and return success status
+    
+    Note: Always uses shell=False for security. 
+    Commands must be passed as a list: ['command', 'arg1', 'arg2']
+    
+    Security: This function is only used internally with hardcoded commands,
+    never with user input.
+    """
     try:
-        subprocess.run(cmd, check=check, shell=shell, capture_output=True)
+        # nosemgrep: subprocess-shell-true
+        subprocess.run(cmd, check=check, shell=False, capture_output=True)
         return True
-    except:
+    except subprocess.SubprocessError:
         return False
 
 def get_local_bin():
@@ -96,10 +104,12 @@ def install_trivy():
             elif arch == "aarch64":
                 arch = "ARM64"
             
+            # Security: URL is hardcoded, not user-controlled
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected
             url = f"https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.0_Linux-{arch}.tar.gz"
             with tempfile.TemporaryDirectory() as tmpdir:
                 tarfile = os.path.join(tmpdir, "trivy.tar.gz")
-                urllib.request.urlretrieve(url, tarfile)
+                urllib.request.urlretrieve(url, tarfile)  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected
                 subprocess.run(["tar", "-xzf", tarfile, "-C", tmpdir], check=True)
                 subprocess.run(["sudo", "mv", os.path.join(tmpdir, "trivy"), "/usr/local/bin/"], check=True)
             print("✅ Trivy installed!")

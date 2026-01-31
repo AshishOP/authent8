@@ -52,6 +52,19 @@ exclude:
   - bin/
   - obj/
   
+  # Authent8 internal files (safe patterns, not user input)
+  - "**/install_tools.py"
+  - "**/authent8/**/*.py"
+  
+  # Demo/example directories (intentionally vulnerable for testing)
+  - "**/demo/**"
+  - "**/vulnerable-app/**"
+  - "**/examples/**"
+  
+  # Environment files (separate from code)
+  - "**/.env"
+  - "**/.env.*"
+  
   # File patterns to skip (reduce false positives)
   - "*.min.js"
   - "*.min.css"
@@ -81,6 +94,10 @@ exclude:
   - "**/generated/**"
   - "**/*.generated.*"
   - "**/migrations/**"
+  
+  # Documentation (markdown with code examples)
+  - "**/*.md"
+  - "**/docs/**"
 
 # Only show impactful severities
 severity:

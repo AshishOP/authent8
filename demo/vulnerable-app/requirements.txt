@@ -1,5 +1,0 @@
-# Intentionally old/vulnerable versions for testing
-Flask==2.0.1
-requests==2.25.1
-Werkzeug==2.0.1
-Jinja2==3.0.1
