@@ -1,0 +1,45 @@
+# Gitleaks Configuration for Authent8
+# Detect hardcoded secrets
+
+title = "Authent8 Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+# Allowlist to reduce false positives
+[allowlist]
+description = "Reduce false positives"
+
+paths = [
+    '''node_modules/''',
+    '''vendor/''',
+    '''\.git/''',
+    '''venv/''',
+    '''\.venv/''',
+    '''dist/''',
+    '''build/''',
+    '''.*test.*''',
+    '''.*example.*''',
+    '''.*mock.*''',
+    '''.*sample.*''',
+]
+
+regexes = [
+    '''example''',
+    '''test''',
+    '''sample''',
+    '''fake''',
+    '''mock''',
+    '''dummy''',
+    '''placeholder''',
+]
+
+stopwords = [
+    "example",
+    "test",
+    "sample",
+    "fake",
+    "mock",
+    "dummy",
+    "placeholder",
+]

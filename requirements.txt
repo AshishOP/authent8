@@ -1,0 +1,13 @@
+# Core dependencies for Authent8 CLI
+
+# CLI framework
+click>=8.1.0
+
+# Terminal UI
+rich>=13.7.0
+
+# HTTP client (for AI API)
+httpx>=0.26.0
+
+# JSON handling (built-in, but explicit for clarity)
+# json (built-in)
