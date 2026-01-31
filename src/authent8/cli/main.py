@@ -300,12 +300,21 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
     
     project_path = Path(path)
     
-    all_files = list(project_path.rglob('*'))
-    scannable_files = [f for f in all_files if f.is_file() and f.suffix in 
-                      ['.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rb', '.php', 
-                       '.cs', '.c', '.cpp', '.h', '.rs', '.swift', '.kt', '.scala', '.yaml', 
-                       '.yml', '.json', '.xml', '.sh', '.bash', '.sql', '.html', '.css']]
+    # Exclude patterns for file count
+    exclude_dirs = {'node_modules', '.git', 'dist', 'build', 'vendor', '__pycache__', 
+                    '.venv', 'venv', '.tox', 'coverage', '.nyc_output', '.next', 'out'}
     
+    all_files = []
+    for f in project_path.rglob('*'):
+        # Skip excluded directories
+        if any(excl in f.parts for excl in exclude_dirs):
+            continue
+        if f.is_file() and f.suffix in ['.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rb', '.php', 
+                                         '.cs', '.c', '.cpp', '.h', '.rs', '.swift', '.kt', '.scala', '.yaml', 
+                                         '.yml', '.json', '.xml', '.sh', '.bash', '.sql', '.html', '.css']:
+            all_files.append(f)
+    
+    scannable_files = all_files
     total_files = len(scannable_files)
     
     console.print(Panel(

@@ -19,9 +19,33 @@ def run_cmd(cmd, check=True, shell=False):
     except:
         return False
 
+def get_local_bin():
+    """Get the local bin path for authent8 tools"""
+    if platform.system().lower() == "windows":
+        return os.path.join(os.environ.get("LOCALAPPDATA", ""), "authent8", "bin")
+    else:
+        return os.path.join(os.path.expanduser("~"), ".local", "bin")
+
 def is_installed(tool):
     """Check if a tool is installed"""
-    return shutil.which(tool) is not None
+    # Check system PATH
+    if shutil.which(tool) is not None:
+        return True
+    
+    # Check local authent8 bin
+    local_bin = get_local_bin()
+    if platform.system().lower() == "windows":
+        local_path = os.path.join(local_bin, f"{tool}.exe")
+    else:
+        local_path = os.path.join(local_bin, tool)
+    
+    if os.path.exists(local_path):
+        # Add to PATH for this session
+        if local_bin not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = local_bin + os.pathsep + os.environ.get("PATH", "")
+        return True
+    
+    return False
 
 def install_semgrep():
     """Install semgrep via pip"""

@@ -5,8 +5,34 @@ Scans for dependency vulnerabilities
 import subprocess
 import json
 import importlib.resources
+import platform
+import os
+import shutil
 from pathlib import Path
 from typing import List, Dict
+
+
+def get_tool_path(tool_name: str) -> str:
+    """Get the full path to a tool, checking local bin on Windows"""
+    # Check system PATH first
+    path = shutil.which(tool_name)
+    if path:
+        return path
+    
+    # Check local authent8 bin (Windows)
+    if platform.system().lower() == "windows":
+        local_bin = os.path.join(os.environ.get("LOCALAPPDATA", ""), "authent8", "bin")
+        local_path = os.path.join(local_bin, f"{tool_name}.exe")
+        if os.path.exists(local_path):
+            return local_path
+    else:
+        local_bin = os.path.join(os.path.expanduser("~"), ".local", "bin")
+        local_path = os.path.join(local_bin, tool_name)
+        if os.path.exists(local_path):
+            return local_path
+    
+    # Fallback to just the tool name
+    return tool_name
 
 
 class TrivyScanner:
