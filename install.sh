@@ -64,24 +64,40 @@ if ! command -v pipx &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing pipx..."
     python3 -m pip install --user pipx
     python3 -m pipx ensurepath
-    export PATH="$HOME/.local/bin:$PATH"
+    # Add ALL possible pipx locations to PATH
+    export PATH="$HOME/.local/bin:$HOME/Library/Python/3.13/bin:$HOME/Library/Python/3.12/bin:$HOME/Library/Python/3.11/bin:$PATH"
 fi
 echo -e "       ${GREEN}✓${NC} pipx ready"
 
 # Install Authent8
 echo -e "${BLUE}[4/5]${NC} Installing Authent8..."
-pipx install authent8 2>/dev/null || pipx upgrade authent8 2>/dev/null || {
+
+# Try pipx first (with full path fallback)
+PIPX_CMD="pipx"
+if ! command -v pipx &> /dev/null; then
+    # Find pipx in common locations
+    for p in "$HOME/.local/bin/pipx" "$HOME/Library/Python/3.13/bin/pipx" "$HOME/Library/Python/3.12/bin/pipx" "$HOME/Library/Python/3.11/bin/pipx"; do
+        if [ -f "$p" ]; then
+            PIPX_CMD="$p"
+            break
+        fi
+    done
+fi
+
+$PIPX_CMD install authent8 2>/dev/null || $PIPX_CMD upgrade authent8 2>/dev/null || {
     # If not on PyPI yet, install from GitHub
     echo -e "       ${YELLOW}→${NC} Installing from GitHub..."
-    pipx install git+https://github.com/AshishOP/authent8.git 2>/dev/null || {
-        echo -e "       ${RED}✗${NC} Could not install from PyPI or GitHub"
-        echo -e "       ${YELLOW}→${NC} Trying local install..."
-        cd /tmp
-        git clone https://github.com/AshishOP/authent8.git authent8-install
-        cd authent8-install
-        pipx install .
-        cd ..
-        rm -rf authent8-install
+    $PIPX_CMD install git+https://github.com/AshishOP/authent8.git 2>/dev/null || {
+        echo -e "       ${YELLOW}→${NC} Using pip install instead..."
+        python3 -m pip install --user git+https://github.com/AshishOP/authent8.git 2>/dev/null || {
+            echo -e "       ${YELLOW}→${NC} Trying local install..."
+            cd /tmp
+            git clone https://github.com/AshishOP/authent8.git authent8-install
+            cd authent8-install
+            python3 -m pip install --user . 
+            cd ..
+            rm -rf authent8-install
+        }
     }
 }
 echo -e "       ${GREEN}✓${NC} Authent8 installed"
