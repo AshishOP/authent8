@@ -22,9 +22,50 @@ load_dotenv()
 
 from authent8.core.scanner_orchestrator import ScanOrchestrator
 from authent8.core.ai_validator import AIValidator
+from authent8.install_tools import check_and_install, is_installed
 from authent8 import __version__
 
 console = Console()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FIRST-RUN TOOL CHECK
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def check_first_run():
+    """Check if this is first run and install tools if needed"""
+    marker_file = Path.home() / ".authent8_installed"
+    
+    # Check if tools are missing
+    tools_missing = not (is_installed("trivy") and is_installed("semgrep") and is_installed("gitleaks"))
+    
+    if tools_missing and not marker_file.exists():
+        console.print()
+        console.print(Panel(
+            "[bold yellow]🔧 First-time setup detected![/bold yellow]\n\n"
+            "Authent8 needs some security tools to scan your code.\n"
+            "We'll try to install them automatically.",
+            title="[bold]Welcome to Authent8[/bold]",
+            border_style="yellow"
+        ))
+        console.print()
+        
+        from rich.prompt import Confirm
+        if Confirm.ask("[cyan]Install required tools now?[/cyan]", default=True):
+            check_and_install()
+            # Create marker file
+            marker_file.touch()
+        else:
+            console.print("[yellow]Skipped. Run 'authent8-setup' later to install tools.[/yellow]")
+            console.print()
+    elif tools_missing:
+        # Show quick warning
+        missing = []
+        if not is_installed("trivy"): missing.append("trivy")
+        if not is_installed("semgrep"): missing.append("semgrep")
+        if not is_installed("gitleaks"): missing.append("gitleaks")
+        
+        if missing:
+            console.print(f"[dim]⚠ Missing tools: {', '.join(missing)}. Run 'authent8-setup' to install.[/dim]")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 3D BANNER & UI HELPERS
@@ -611,6 +652,9 @@ def cli(ctx):
     
     Your code stays local - only anonymized metadata is sent to AI.
     """
+    # Check for first run and offer to install tools
+    check_first_run()
+    
     if ctx.invoked_subcommand is None:
         ctx.invoke(run)
 

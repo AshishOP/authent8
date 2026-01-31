@@ -67,6 +67,7 @@ Issues = "https://github.com/authent8/authent8/issues"
 
 [project.scripts]
 authent8 = "authent8.cli.main:cli"
+authent8-setup = "authent8.install_tools:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
