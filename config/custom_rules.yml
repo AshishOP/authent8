@@ -1,0 +1,242 @@
+rules:
+  # ============================================================
+  # CWE-502: Insecure Deserialization
+  # ============================================================
+  - id: pickle-loads-insecure
+    pattern: pickle.loads($DATA)
+    message: "CWE-502: Insecure deserialization using pickle.loads(). Pickle can execute arbitrary code."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-502"
+      owasp: "A04:2021"
+
+  - id: yaml-unsafe-load
+    pattern: yaml.load($DATA)
+    message: "CWE-502: Unsafe YAML loading without Loader. Use yaml.safe_load() instead."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-502"
+
+  # ============================================================
+  # CWE-489: Debug Mode Enabled
+  # ============================================================
+  - id: flask-debug-true
+    pattern: app.run(..., debug=True, ...)
+    message: "CWE-489: Debug mode enabled in production. Set debug=False."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-489"
+      owasp: "A05:2021"
+
+  - id: django-debug-true
+    pattern: DEBUG = True
+    message: "CWE-489: Django DEBUG=True should not be used in production."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-489"
+
+  # ============================================================
+  # CWE-611: XXE (XML External Entity)
+  # ============================================================
+  - id: xxe-lxml-parse
+    pattern: etree.parse($INPUT)
+    message: "CWE-611: Potential XXE vulnerability. Use defusedxml instead."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-611"
+      owasp: "A05:2021"
+
+  - id: xxe-lxml-fromstring
+    pattern: etree.fromstring($DATA)
+    message: "CWE-611: Potential XXE. Use defusedxml.lxml.fromstring() instead."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-611"
+
+  - id: xxe-xml-parse
+    pattern: xml.etree.ElementTree.parse($INPUT)
+    message: "CWE-611: Potential XXE with ElementTree.parse()."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-611"
+
+  # ============================================================
+  # CWE-918: SSRF (Server-Side Request Forgery)
+  # ============================================================
+  - id: ssrf-requests-get
+    pattern: requests.get($URL)
+    message: "CWE-918: Potential SSRF if URL is user-controlled. Validate URL before making request."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-918"
+      owasp: "A10:2021"
+
+  - id: ssrf-requests-post
+    pattern: requests.post($URL, ...)
+    message: "CWE-918: Potential SSRF if URL is user-controlled. Validate URL before making request."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-918"
+      owasp: "A10:2021"
+
+  - id: ssrf-urllib
+    pattern: urllib.request.urlopen($URL)
+    message: "CWE-918: Potential SSRF if URL is user-controlled."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-918"
+      owasp: "A10:2021"
+
+  # ============================================================
+  # CWE-330: Insecure Random
+  # ============================================================
+  - id: insecure-random-token
+    pattern: random.choice($X)
+    message: "CWE-330: random.choice() is not cryptographically secure. Use secrets.choice() instead."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-330"
+
+  - id: insecure-random-int
+    pattern: random.randint($X, $Y)
+    message: "CWE-330: random.randint() is not cryptographically secure for security purposes."
+    severity: INFO
+    languages: [python]
+    metadata:
+      cwe: "CWE-330"
+
+  # ============================================================
+  # CWE-521: Weak Password Requirements
+  # ============================================================
+  - id: weak-password-length
+    pattern: len($PASSWORD) >= $N
+    message: "CWE-521: Check password complexity, not just length."
+    severity: INFO
+    languages: [python]
+    metadata:
+      cwe: "CWE-521"
+      owasp: "A07:2021"
+
+  # ============================================================
+  # CWE-78: Command Injection (Enhanced)
+  # ============================================================
+  - id: os-system-injection
+    pattern: os.system($CMD)
+    message: "CWE-78: os.system() with dynamic input is vulnerable to command injection."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-78"
+      owasp: "A03:2021"
+
+  - id: subprocess-shell-true
+    pattern: subprocess.run(..., shell=True, ...)
+    message: "CWE-78: subprocess with shell=True can lead to command injection."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-78"
+
+  # ============================================================
+  # CWE-89: SQL Injection (Enhanced)
+  # ============================================================
+  - id: sql-execute-format
+    pattern: $CURSOR.execute($QUERY % $INPUT)
+    message: "CWE-89: SQL query with % formatting is vulnerable to SQL injection."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+
+  - id: sql-execute-fstring
+    pattern: $CURSOR.execute(f"...")
+    message: "CWE-89: SQL query with f-string is vulnerable to SQL injection."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+
+  # ============================================================
+  # CWE-79: XSS (Enhanced)
+  # ============================================================
+  - id: flask-xss-render-template-string
+    pattern: render_template_string($TEMPLATE)
+    message: "CWE-79: render_template_string() with user input can lead to XSS."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-79"
+      owasp: "A03:2021"
+
+  - id: django-mark-safe
+    pattern: mark_safe($DATA)
+    message: "CWE-79: mark_safe() with user input can lead to XSS."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-79"
+
+  # ============================================================
+  # CWE-327: Weak Cryptography
+  # ============================================================
+  - id: weak-hash-md5
+    pattern: hashlib.md5($DATA)
+    message: "CWE-327: MD5 is cryptographically broken. Use SHA-256 or better."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-327"
+      owasp: "A02:2021"
+
+  - id: weak-hash-sha1
+    pattern: hashlib.sha1($DATA)
+    message: "CWE-327: SHA1 is deprecated for security. Use SHA-256 or better."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-327"
+
+  # ============================================================
+  # CWE-22: Path Traversal
+  # ============================================================
+  - id: path-traversal-open
+    pattern: open($PATH, ...)
+    message: "CWE-22: File open with user input. Validate path to prevent traversal."
+    severity: WARNING
+    languages: [python]
+    metadata:
+      cwe: "CWE-22"
+      owasp: "A01:2021"
+
+  # ============================================================
+  # CWE-95: Code Injection
+  # ============================================================
+  - id: eval-code-injection
+    pattern: eval($CODE)
+    message: "CWE-95: eval() with user input leads to code injection."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-95"
+      owasp: "A03:2021"
+
+  - id: exec-code-injection
+    pattern: exec($CODE)
+    message: "CWE-95: exec() with user input leads to code injection."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-95"

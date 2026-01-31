@@ -1,0 +1,152 @@
+{
+  "total_cases": 15,
+  "categories": {
+    "A01_Broken_Access_Control": 2,
+    "A02_Cryptographic_Failures": 3,
+    "A03_Injection": 4,
+    "A04_Insecure_Design": 1,
+    "A05_Security_Misconfiguration": 2,
+    "A07_Auth_Failures": 1,
+    "A08_Data_Integrity": 1,
+    "A10_SSRF": 1
+  },
+  "cases": {
+    "A01_Broken_Access_Control": [
+      {
+        "cwe": 22,
+        "name": "Path Traversal",
+        "vulnerable_lines": [
+          8
+        ],
+        "code": "\"\"\"CWE-22: Path Traversal - VULNERABLE\"\"\"\nfrom flask import Flask, request\napp = Flask(__name__)\n\n@app.route('/read')\ndef read_file():\n    filename = request.args.get('file')\n    with open(filename, 'r') as f:  # VULN: Path traversal\n        return f.read()\n"
+      },
+      {
+        "cwe": 639,
+        "name": "IDOR",
+        "vulnerable_lines": [
+          9
+        ],
+        "code": "\"\"\"CWE-639: IDOR - VULNERABLE\"\"\"\nfrom flask import Flask, request, session\napp = Flask(__name__)\n\n@app.route('/user/<id>')\ndef get_user(id):\n    # VULN: No authorization check - any user can access any profile\n    user = db.query(f\"SELECT * FROM users WHERE id = {id}\")  # VULN\n    return user\n"
+      }
+    ],
+    "A02_Cryptographic_Failures": [
+      {
+        "cwe": 327,
+        "name": "Weak Hash MD5",
+        "vulnerable_lines": [
+          7
+        ],
+        "code": "\"\"\"CWE-327: Weak Cryptography - VULNERABLE\"\"\"\nimport hashlib\n\ndef hash_password(password):\n    # VULN: MD5 is cryptographically broken\n    return hashlib.md5(password.encode()).hexdigest()  # VULN\n\ndef verify(password, hash):\n    return hash_password(password) == hash\n"
+      },
+      {
+        "cwe": 327,
+        "name": "Weak Hash SHA1",
+        "vulnerable_lines": [
+          7
+        ],
+        "code": "\"\"\"CWE-327: Weak Hash SHA1 - VULNERABLE\"\"\"\nimport hashlib\n\ndef hash_token(token):\n    # VULN: SHA1 is deprecated for security\n    return hashlib.sha1(token.encode()).hexdigest()  # VULN\n"
+      },
+      {
+        "cwe": 798,
+        "name": "Hardcoded Password",
+        "vulnerable_lines": [
+          4,
+          5
+        ],
+        "code": "\"\"\"CWE-798: Hardcoded Credentials - VULNERABLE\"\"\"\nimport os\n\nDB_PASSWORD = \"admin123\"  # VULN: Hardcoded password\nAPI_KEY = \"sk-1234567890abcdef\"  # VULN: Hardcoded API key\n\ndef connect():\n    return Database(password=DB_PASSWORD)\n"
+      }
+    ],
+    "A03_Injection": [
+      {
+        "cwe": 89,
+        "name": "SQL Injection Format",
+        "vulnerable_lines": [
+          9
+        ],
+        "code": "\"\"\"CWE-89: SQL Injection - VULNERABLE\"\"\"\nimport sqlite3\nfrom flask import Flask, request\napp = Flask(__name__)\n\n@app.route('/login', methods=['POST'])\ndef login():\n    user = request.form['username']\n    query = f\"SELECT * FROM users WHERE username = '{user}'\"  # VULN\n    cursor.execute(query)\n"
+      },
+      {
+        "cwe": 78,
+        "name": "Command Injection",
+        "vulnerable_lines": [
+          9
+        ],
+        "code": "\"\"\"CWE-78: Command Injection - VULNERABLE\"\"\"\nimport os\nfrom flask import Flask, request\napp = Flask(__name__)\n\n@app.route('/ping')\ndef ping():\n    host = request.args.get('host')\n    os.system(f\"ping -c 1 {host}\")  # VULN: Command injection\n    return \"done\"\n"
+      },
+      {
+        "cwe": 95,
+        "name": "Code Injection eval",
+        "vulnerable_lines": [
+          9
+        ],
+        "code": "\"\"\"CWE-95: Code Injection - VULNERABLE\"\"\"\nfrom flask import Flask, request\napp = Flask(__name__)\n\n@app.route('/calc')\ndef calculate():\n    expr = request.args.get('expr')\n    result = eval(expr)  # VULN: eval with user input\n    return str(result)\n"
+      },
+      {
+        "cwe": 79,
+        "name": "XSS",
+        "vulnerable_lines": [
+          9
+        ],
+        "code": "\"\"\"CWE-79: XSS - VULNERABLE\"\"\"\nfrom flask import Flask, request, render_template_string\napp = Flask(__name__)\n\n@app.route('/greet')\ndef greet():\n    name = request.args.get('name')\n    return render_template_string(f\"<h1>Hello {name}</h1>\")  # VULN\n"
+      }
+    ],
+    "A04_Insecure_Design": [
+      {
+        "cwe": 502,
+        "name": "Insecure Deserialization",
+        "vulnerable_lines": [
+          9
+        ],
+        "code": "\"\"\"CWE-502: Insecure Deserialization - VULNERABLE\"\"\"\nimport pickle\nfrom flask import Flask, request\napp = Flask(__name__)\n\n@app.route('/load')\ndef load():\n    data = request.get_data()\n    obj = pickle.loads(data)  # VULN: Pickle with untrusted data\n    return str(obj)\n"
+      }
+    ],
+    "A05_Security_Misconfiguration": [
+      {
+        "cwe": 489,
+        "name": "Debug Mode",
+        "vulnerable_lines": [
+          8
+        ],
+        "code": "\"\"\"CWE-489: Debug Mode - VULNERABLE\"\"\"\nfrom flask import Flask\napp = Flask(__name__)\n\nif __name__ == '__main__':\n    # VULN: Debug mode in production\n    app.run(host='0.0.0.0', debug=True)  # VULN\n"
+      },
+      {
+        "cwe": 611,
+        "name": "XXE",
+        "vulnerable_lines": [
+          9
+        ],
+        "code": "\"\"\"CWE-611: XXE - VULNERABLE\"\"\"\nfrom lxml import etree\nfrom flask import Flask, request\napp = Flask(__name__)\n\n@app.route('/parse')\ndef parse():\n    data = request.get_data()\n    tree = etree.fromstring(data)  # VULN: XXE possible\n    return str(tree)\n"
+      }
+    ],
+    "A07_Auth_Failures": [
+      {
+        "cwe": 521,
+        "name": "Weak Password",
+        "vulnerable_lines": [
+          5
+        ],
+        "code": "\"\"\"CWE-521: Weak Password Requirements - VULNERABLE\"\"\"\ndef validate_password(password):\n    # VULN: Only checks length, no complexity\n    if len(password) >= 4:  # VULN: Too weak\n        return True\n    return False\n"
+      }
+    ],
+    "A08_Data_Integrity": [
+      {
+        "cwe": 330,
+        "name": "Insecure Random",
+        "vulnerable_lines": [
+          7
+        ],
+        "code": "\"\"\"CWE-330: Insecure Random - VULNERABLE\"\"\"\nimport random\nimport string\n\ndef generate_token():\n    # VULN: random is not cryptographically secure\n    chars = string.ascii_letters + string.digits\n    return ''.join(random.choice(chars) for _ in range(32))  # VULN\n"
+      }
+    ],
+    "A10_SSRF": [
+      {
+        "cwe": 918,
+        "name": "SSRF",
+        "vulnerable_lines": [
+          9
+        ],
+        "code": "\"\"\"CWE-918: SSRF - VULNERABLE\"\"\"\nimport requests\nfrom flask import Flask, request\napp = Flask(__name__)\n\n@app.route('/fetch')\ndef fetch():\n    url = request.args.get('url')\n    response = requests.get(url)  # VULN: SSRF\n    return response.text\n"
+      }
+    ]
+  }
+}

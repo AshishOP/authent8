@@ -93,7 +93,7 @@ paths = [
                             # Filter out files in excluded paths
                             filtered_data = [
                                 s for s in data 
-                                if not any(excl in s.get("File", "") for excl in self.EXCLUDE_PATHS)
+                                if not any(excl in s.get("File", "") for excl in self.EXCLUDE_PATTERNS)
                             ]
                             return self._parse_results(filtered_data)
                 except (FileNotFoundError, json.JSONDecodeError):
