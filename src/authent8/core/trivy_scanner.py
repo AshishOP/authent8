@@ -54,12 +54,15 @@ class TrivyScanner:
             # Check if trivy is installed
             trivy_path = get_tool_path("trivy")
             
-            # Build command with comprehensive scanning
+            # Build command - optimized for speed
             cmd = [
                 trivy_path, "fs",
-                "--severity", "CRITICAL,HIGH,MEDIUM",
+                "--severity", "CRITICAL,HIGH",  # Focus on important issues
                 "--format", "json",
-                "--scanners", "vuln,secret,misconfig",  # Scan vulnerabilities, secrets, and misconfigs
+                "--scanners", "vuln,misconfig",  # Skip secrets (gitleaks handles it)
+                "--skip-db-update",  # Use cached DB - huge speed boost
+                "--offline-scan",  # Don't fetch from network
+                "--timeout", "60s",  # 1 minute max
                 str(self.project_path)
             ]
             

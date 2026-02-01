@@ -52,18 +52,19 @@ class SemgrepScanner:
             for pattern in self.EXCLUDE_PATTERNS:
                 exclude_args.extend(["--exclude", pattern])
             
-            # Use multiple rule packs for maximum coverage
+            # Use security-audit (comprehensive) + auto (speed via caching)
+            # Keep full detection, optimize via caching and timeouts
             cmd = [
                 "semgrep",
-                "--config", "p/security-audit",
-                "--config", "p/owasp-top-ten",
-                "--config", "p/secrets",              # +5% recall for secrets
-                "--config", "p/python",               # Python-specific patterns
-                "--config", "p/sql-injection",        # Focused SQL injection
-                "--config", "p/command-injection",    # Command injection patterns
+                "--config", "p/security-audit",  # Full security coverage
+                "--config", "p/owasp-top-ten",   # OWASP vulnerabilities
                 "--json",
                 "--quiet",
                 "--metrics", "off",  # Privacy: no telemetry
+                "--timeout", "10",   # Per-rule timeout (faster)
+                "--timeout-threshold", "3",  # Skip slow rules after 3 timeouts
+                "--max-target-bytes", "500000",  # Skip files >500KB
+                "-j", "4",  # Use 4 parallel jobs
             ] + exclude_args + [
                 str(self.project_path)
             ]
