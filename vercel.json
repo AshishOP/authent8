@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "public": true,
+  "buildCommand": "",
+  "outputDirectory": "landing",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

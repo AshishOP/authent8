@@ -40,3 +40,13 @@ htmlcov/
 # Security scanner outputs
 scan-results.json
 *.sarif
+
+# Development/Benchmark files (not for repo)
+benchmark*.py
+*BENCHMARK*.md
+*ACCURACY*.md
+DEMO_SCRIPT.md
+REAL_BENCHMARKS.md
+benchmark_datasets/
+benchmark_real/
+test_*.py
