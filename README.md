@@ -223,10 +223,6 @@ authent8/
     └── gitleaks.toml   # Secret patterns
 ```
 
-## 🎥 Demo
-
-> 📺 **Watch the demo:** [Coming Soon - Video link will be added]
-
 ## 📜 License
 
 MIT - Use it however you want!
