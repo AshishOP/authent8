@@ -87,14 +87,15 @@ fi
 # Clean up any previous failed install
 rm -rf /tmp/authent8-install 2>/dev/null || true
 
-# Skip pipx entirely - just use pip directly (more reliable)
+# Use pipx for isolation (works on all distros including Arch)
 echo -e "       ${YELLOW}→${NC} Installing from GitHub..."
-python3 -m pip install --user git+https://github.com/AshishOP/authent8.git 2>/dev/null || {
+$PIPX_CMD install git+https://github.com/AshishOP/authent8.git 2>/dev/null || {
     echo -e "       ${YELLOW}→${NC} Cloning and installing locally..."
     cd /tmp
+    rm -rf authent8-install 2>/dev/null
     git clone https://github.com/AshishOP/authent8.git authent8-install
     cd authent8-install
-    python3 -m pip install --user .
+    $PIPX_CMD install .
     cd /tmp
     rm -rf authent8-install
 }
