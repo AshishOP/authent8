@@ -16,12 +16,10 @@
 ## 🎬 See It In Action
 
 ### Web Interface
-https://github.com/AshishOP/authent8/raw/main/Public/web_ui.mp4
+![Web UI Demo](Public/web_ui.gif)
 
 ### CLI Demo  
-https://github.com/AshishOP/authent8/raw/main/Public/Demo_CLI.mp4
-
-> 💡 **Tip:** Click the links above to watch the demo videos!
+![CLI Demo](Public/Demo_CLI.gif)
 
 ---
 
