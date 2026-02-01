@@ -13,6 +13,20 @@
 
 ---
 
+## 🎬 See It In Action
+
+### Web Interface
+https://github.com/user-attachments/assets/web_ui.mp4
+
+<video src="Public/web_ui.mp4" controls width="100%"></video>
+
+### CLI Demo
+https://github.com/user-attachments/assets/Demo_CLI.mp4
+
+<video src="Public/Demo_CLI.mp4" controls width="100%"></video>
+
+---
+
 ## 🤔 What is Authent8?
 
 Imagine you're building an app and you want to check if your code has security issues - like accidentally leaving passwords in your code, or having SQL injection bugs that hackers could exploit.
@@ -185,6 +199,38 @@ cd authent8
 pip install -e .
 ```
 
+## 🏗️ Technology Stack
+
+| Component | Technology | Why We Chose It |
+|-----------|------------|-----------------|
+| **Core Language** | Python 3.9+ | Universal, readable, great ecosystem |
+| **CLI Framework** | Rich + Typer | Beautiful terminal UI with colors |
+| **Vulnerability Scanner** | Trivy | Industry standard, fast, comprehensive |
+| **Code Analysis** | Semgrep | Pattern-based, no false positives |
+| **Secret Detection** | Gitleaks | Fastest secret scanner available |
+| **AI Layer** | OpenAI GPT-4o-mini | Fast, accurate code explanations |
+
+## 🏛️ Architecture
+
+```
+authent8/
+├── cli/                 # Command-line interface
+│   └── main.py         # Entry point, argument parsing
+├── core/               # Business logic
+│   ├── scanner_orchestrator.py  # Coordinates all scanners
+│   ├── trivy_scanner.py         # CVE/dependency scanning
+│   ├── semgrep_scanner.py       # Code pattern analysis
+│   ├── gitleaks_scanner.py      # Secret detection
+│   └── ai_validator.py          # Optional AI explanations
+└── config/             # Scanner configurations
+    ├── .semgrep.yml    # Custom security rules
+    └── gitleaks.toml   # Secret patterns
+```
+
+## 🎥 Demo
+
+> 📺 **Watch the demo:** [Coming Soon - Video link will be added]
+
 ## 📜 License
 
 MIT - Use it however you want!
@@ -193,5 +239,5 @@ MIT - Use it however you want!
 
 <p align="center">
   <strong>Built for developers who care about privacy 🔒</strong><br>
-  <a href="https://authent8.dev">authent8.dev</a>
+  <a href="https://authent8.dev">authent8.dev</a> · <a href="AI_IMPACT_STATEMENT.md">AI Impact Statement</a>
 </p>
