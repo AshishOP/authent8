@@ -62,8 +62,12 @@ fi
 echo -e "${BLUE}[3/5]${NC} Checking pipx..."
 if ! command -v pipx &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing pipx..."
-    python3 -m pip install --user pipx
-    python3 -m pipx ensurepath
+    if [[ "$DISTRO" == "arch" ]]; then
+        sudo pacman -S --noconfirm python-pipx
+    else
+        python3 -m pip install --user pipx 2>/dev/null || python3 -m pip install --user --break-system-packages pipx
+    fi
+    python3 -m pipx ensurepath 2>/dev/null || true
     # Add ALL possible pipx locations to PATH
     export PATH="$HOME/.local/bin:$HOME/Library/Python/3.13/bin:$HOME/Library/Python/3.12/bin:$HOME/Library/Python/3.11/bin:$PATH"
 fi
@@ -125,7 +129,7 @@ echo -e "       ${GREEN}✓${NC} Trivy ready"
 # Semgrep
 if ! command -v semgrep &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing Semgrep..."
-    python3 -m pip install --user semgrep
+    $PIPX_CMD install semgrep 2>/dev/null || pipx install semgrep
 fi
 echo -e "       ${GREEN}✓${NC} Semgrep ready"
 
