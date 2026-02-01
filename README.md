@@ -231,5 +231,5 @@ MIT - Use it however you want!
 
 <p align="center">
   <strong>Built for developers who care about privacy 🔒</strong><br>
-  <a href="https://authent8.dev">authent8.dev</a> · <a href="AI_IMPACT_STATEMENT.md">AI Impact Statement</a>
+  <a href="https://authent8.vercel.app">authent8</a> · <a href="AI_IMPACT_STATEMENT.md">AI Impact Statement</a>
 </p>
