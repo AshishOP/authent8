@@ -80,14 +80,9 @@ try {
 
 # Install Authent8
 Write-Blue "[4/5] Installing Authent8..."
-try {
-    python -m pip install --user authent8 --quiet
-    Write-Host "       " -NoNewline; Write-Green "✓ Authent8 installed"
-} catch {
-    Write-Host "       " -NoNewline; Write-Yellow "→ Installing from GitHub..."
-    python -m pip install --user git+https://github.com/AshishOP/authent8.git --quiet
-    Write-Host "       " -NoNewline; Write-Green "✓ Authent8 installed"
-}
+Write-Host "       " -NoNewline; Write-Yellow "→ Installing/Updating from GitHub..."
+python -m pip install --user --upgrade --force-reinstall git+https://github.com/AshishOP/authent8.git --quiet
+Write-Host "       " -NoNewline; Write-Green "✓ Authent8 installed"
 
 # Add Python Scripts to PATH
 $pythonScripts = python -c "import site; print(site.USER_SITE.replace('site-packages', 'Scripts'))"
