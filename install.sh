@@ -157,8 +157,10 @@ if [[ "$OS" == "macos" ]]; then
 fi
 
 echo ""
-echo -e "${YELLOW}Note: Open a new terminal or run: source ~/.zshrc${NC}"
-echo ""
 echo -e "${YELLOW}Optional: Set your AI API key for smart validation:${NC}"
 echo -e "  export OPENAI_API_KEY=your-key-here"
 echo ""
+
+# Auto-run authent8 with the updated PATH
+echo -e "${BLUE}Launching Authent8...${NC}"
+exec "$SHELL" -c "export PATH=\"\$HOME/Library/Python/3.13/bin:\$HOME/Library/Python/3.12/bin:\$HOME/Library/Python/3.11/bin:\$HOME/.local/bin:\$PATH\"; authent8 --help"
