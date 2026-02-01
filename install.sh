@@ -147,6 +147,17 @@ echo -e "${GREEN}✓ Installation complete!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "Run ${BLUE}authent8${NC} to start scanning!"
+# Add user bin to PATH if on macOS
+if [[ "$OS" == "macos" ]]; then
+    USER_BIN="$HOME/Library/Python/3.13/bin"
+    if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
+        echo "export PATH=\"\$HOME/Library/Python/3.13/bin:\$PATH\"" >> ~/.zshrc
+        export PATH="$USER_BIN:$PATH"
+    fi
+fi
+
+echo ""
+echo -e "${YELLOW}Note: Open a new terminal or run: source ~/.zshrc${NC}"
 echo ""
 echo -e "${YELLOW}Optional: Set your AI API key for smart validation:${NC}"
 echo -e "  export OPENAI_API_KEY=your-key-here"
