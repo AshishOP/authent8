@@ -234,8 +234,8 @@ def ask_scan_options() -> dict:
     console.print("\n [#3b82f6]⚙️  SCAN OPTIONS[/#3b82f6]\n")
     
     # AI validation toggle
-    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GITHUB_TOKEN")
-    ai_available = bool(api_key)
+    validator = AIValidator()
+    ai_available = bool(validator.client)
     
     if ai_available:
         use_ai = questionary.confirm(
@@ -246,7 +246,7 @@ def ask_scan_options() -> dict:
         if use_ai is None:
             return None
     else:
-        console.print("[#666666]   AI validation unavailable (no API key set)[/#666666]")
+        console.print("[#666666]   AI validation unavailable (No provider configured)[/#666666]")
         use_ai = False
     
     # Verbose mode
@@ -514,10 +514,9 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
         # AI Validation
         if not no_ai and findings:
             t4 = progress.add_task("AI Verification ", total=len(findings), current_file="")
-            api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GITHUB_TOKEN")
-            if api_key:
-                try:
-                    validator = AIValidator(api_key)
+            try:
+                validator = AIValidator() # Will pick up keys/model from config automatically
+                if validator.client:
                     # Process in batches showing progress
                     validated = []
                     batch_size = 5
@@ -529,8 +528,10 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
                         validated.extend(result)
                         progress.advance(t4, len(batch))
                     findings = validated
-                except Exception as e:
-                    progress.update(t4, current_file=f"⚠ Error: {str(e)[:20]}")
+                else:
+                    progress.update(t4, current_file="⚠ Skipped: No key")
+            except Exception as e:
+                progress.update(t4, current_file=f"⚠ Error: {str(e)[:20]}")
             progress.update(t4, completed=len(findings), current_file="✓ Complete")
 
     console.print()
