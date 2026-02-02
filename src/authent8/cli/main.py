@@ -446,20 +446,30 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
         # Helper to animate file scanning and fake percentage
         def animate_files(task_id, stop_event):
             import random
-            files = [f.name for f in all_files] if all_files else ["file_check"]
+            # Use relative paths to show folders
+            if all_files:
+                rel_files = [f.relative_to(project_path) for f in all_files]
+            else:
+                rel_files = [Path("checking_files...")]
+                
             current_prog = 0
             
             while not stop_event.is_set():
-                # Update files
-                f = random.choice(files)
+                # Pick a random file and show its parent folder
+                f = random.choice(rel_files)
+                folder_str = str(f.parent) if str(f.parent) != "." else "root"
                 
                 # Zeno's progress: increment towards 95%
                 if current_prog < 95:
                     step = random.uniform(0.5, 2.0)
                     current_prog = min(95, current_prog + step)
                 
-                progress.update(task_id, completed=current_prog, current_file=f"Scanning {f[:20]}...")
-                time.sleep(0.1)
+                # Truncate long folder paths
+                if len(folder_str) > 20:
+                    folder_str = "..." + folder_str[-17:]
+                    
+                progress.update(task_id, completed=current_prog, current_file=f"dir: {folder_str}")
+                time.sleep(0.08) # Slightly faster flip for better "alive" feel
 
         # Run scans in parallel
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
