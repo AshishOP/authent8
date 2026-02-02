@@ -510,6 +510,15 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
             progress.update(t3, total=100, completed=100, current_file=f"✓ {len(gitleaks_findings)} found")
 
         findings = trivy_findings + semgrep_findings + gitleaks_findings
+        
+        # Enrich and Filter False Positives (using orchestrator's manager)
+        orchestrator._enrich_code_snippets(findings)
+        original_count = len(findings)
+        findings = [f for f in findings if not orchestrator.fp_manager.is_ignored(f)]
+        suppressed = original_count - len(findings)
+        
+        if suppressed > 0:
+            console.print(f"\n[dim]ℹ {suppressed} findings hidden (marked as false positives)[/dim]")
 
         # AI Validation
         if not no_ai and findings:
@@ -546,9 +555,51 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
     add_to_history(path, len(real_findings), crit, high, duration)
     display_results(real_findings, duration, verbose)
     
+    # Interactive FP Management
+    if real_findings:
+        console.print()
+        if questionary.confirm("Review and mark false positives?", default=False, style=custom_style).ask():
+            manage_false_positives(orchestrator, real_findings)
+    
     if output:
         with open(output, 'w') as f:
             json.dump(findings, f, indent=2)
+
+def manage_false_positives(orchestrator, findings):
+    """Interactive dialog to suppress findings"""
+    choices = []
+    # Deduplicate for selection list
+    seen = set()
+    for f in findings:
+        # Create a readable label
+        fname = f.get('file', 'unknown')
+        line = f.get('line', 0)
+        rule = f.get('rule_id', 'unknown')
+        key = f"{fname}:{line}:{rule}"
+        
+        if key not in seen:
+            title = f"[{f.get('severity')}] {Path(fname).name}:{line} - {rule}"
+            choices.append(questionary.Choice(title, value=f))
+            seen.add(key)
+            
+    if not choices:
+        console.print("[yellow]No issues to manage.[/yellow]")
+        return
+
+    to_ignore = questionary.checkbox(
+        "Select findings to ignore (Space to select, Enter to confirm):",
+        choices=choices,
+        style=custom_style
+    ).ask()
+    
+    if to_ignore:
+        count = 0
+        for f in to_ignore:
+            orchestrator.fp_manager.add(f)
+            count += 1
+        console.print(f"\n[green]✓ Ignored {count} findings. They will be hidden in future scans.[/green]")
+        console.print("[dim]Use 'manage-fps' command to restore them later.[/dim]")
+        time.sleep(2)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # RESULTS RENDERING (OPENCODE STYLE)
@@ -720,6 +771,7 @@ def show_main_menu():
             questionary.Choice("⚡ Quick Scan       Scan current directory", value="Quick Scan"),
             questionary.Choice("📂 Browse Files     Choose a folder to scan", value="Browse Files"),
             questionary.Choice("📝 Manual Path      Enter path directly", value="Manual Path"),
+            questionary.Choice("🛡️ False Positives  Manage ignored findings", value="False Positives"),
             questionary.Choice("⚙️  Configuration    View settings & status", value="Configuration"),
             questionary.Choice("🔄 Update           Install latest version", value="Update"),
             questionary.Separator("─────────────────────────────────────────────"),
@@ -784,9 +836,42 @@ def run_interactive_loop():
             if p and Path(p).exists():
                 run_scan_with_progress(str(Path(p).resolve()))
                 input("\nPress Enter to return...")
+                
+        elif choice == "False Positives":
+            manage_false_positives_menu()
         
         elif choice == "Configuration":
             run_configuration_menu()
+
+def manage_false_positives_menu():
+    from authent8.core.false_positives import FalsePositiveManager
+    
+    # Assume current directory for now as checks are relative to where user runs authent8
+    mgr = FalsePositiveManager(Path.cwd())
+    
+    if not mgr.ignored_findings:
+        console.print("\n[yellow]No false positives marked in this directory.[/yellow]")
+        console.print(f"[dim]Checking: {Path.cwd()}[/dim]")
+        input("\nPress Enter to return...")
+        return
+
+    choices = []
+    for f in mgr.ignored_findings:
+        fname = Path(f.get('file', '?')).name
+        title = f"[{f.get('severity')}] {fname}:{f.get('line')} - {f.get('rule_id')}"
+        choices.append(questionary.Choice(title, value=f.get('fp_hash')))
+        
+    to_restore = questionary.checkbox(
+        "Select findings to RESTORE (un-ignore):",
+        choices=choices,
+        style=custom_style
+    ).ask()
+    
+    if to_restore:
+        for fp_hash in to_restore:
+            mgr.remove(fp_hash)
+        console.print(f"\n[green]✓ Restored {len(to_restore)} findings.[/green]")
+        time.sleep(1)
         
         elif choice == "Update":
             console.print("\n[#3b82f6]🔄 Checking for updates...[/#3b82f6]")

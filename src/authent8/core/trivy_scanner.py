@@ -79,7 +79,7 @@ class TrivyScanner:
                     "message": vuln.get("Title", "")[:200],
                     
                     # Location
-                    "file": Path(target).name if target else "dependencies",
+                    "file": target if target else "dependencies",
                     "line": 0,
                     
                     # Vulnerability details

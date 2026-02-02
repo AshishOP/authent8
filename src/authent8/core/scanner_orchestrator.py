@@ -14,6 +14,8 @@ from .semgrep_scanner import SemgrepScanner
 from .gitleaks_scanner import GitleaksScanner
 
 
+from .false_positives import FalsePositiveManager
+
 class ScanOrchestrator:
     """Orchestrates Trivy, Semgrep, and Gitleaks scans"""
     
@@ -30,6 +32,7 @@ class ScanOrchestrator:
             "gitleaks": []
         }
         self.scan_duration = 0
+        self.fp_manager = FalsePositiveManager(self.project_path)
         
         # Verify project path exists
         if not self.project_path.exists():
@@ -37,79 +40,28 @@ class ScanOrchestrator:
             
         self.ignored_patterns = self._load_ignore_patterns()
 
-    def _load_ignore_patterns(self) -> List[str]:
-        """Load patterns from .a8ignore file or use sensible defaults"""
-        # Sane defaults for almost all modern projects
-        patterns = [
-            "node_modules", ".git", "dist", "build", "vendor", "__pycache__", 
-            ".venv", "venv", ".next", ".cache", ".tmp", 
-            "0.pack", ".previewinfo", ".rscinfo", "prerender-manifest.json",
-            "server-reference-manifest.json", ".vercel", "site-packages",
-            "*.min.js", "*.min.css", "*.map", "*.log", "package-lock.json"
-        ]
-        
-        ignore_file = self.project_path / ".a8ignore"
-        if ignore_file.exists():
-            try:
-                with open(ignore_file, 'r') as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and not line.startswith("#"):
-                            # Handle both folder/ and file.ext patterns
-                            patterns.append(line.rstrip("/"))
-            except Exception:
-                pass
-        
-        # Deduplicate and return
-        return list(set(patterns))
-    
-    def run_trivy(self) -> List[Dict]:
-        """Run Trivy vulnerability scanner"""
-        scanner = TrivyScanner(self.project_path)
-        return scanner.scan(ignored_patterns=self.ignored_patterns)
-    
-    def run_semgrep(self) -> List[Dict]:
-        """Run Semgrep SAST scanner"""
-        scanner = SemgrepScanner(self.project_path)
-        return scanner.scan(ignored_patterns=self.ignored_patterns)
-    
-    def run_gitleaks(self) -> List[Dict]:
-        """Run Gitleaks secret scanner"""
-        scanner = GitleaksScanner(self.project_path)
-        return scanner.scan(ignored_patterns=self.ignored_patterns)
-    
-    def scan_all_parallel(self) -> Dict:
-        """Run all scanners in parallel for speed"""
-        start_time = time.time()
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            future_trivy = executor.submit(self.run_trivy)
-            future_semgrep = executor.submit(self.run_semgrep)
-            future_gitleaks = executor.submit(self.run_gitleaks)
-            
-            # Collect results
-            self.results["trivy"] = future_trivy.result()
-            self.results["semgrep"] = future_semgrep.result()
-            self.results["gitleaks"] = future_gitleaks.result()
-        
-        self.scan_duration = time.time() - start_time
-        return self.results
-    
-    def get_all_findings(self) -> List[Dict]:
+    # ... (skipping unchanged methods) ...
+
+    def get_all_findings(self, include_ignored: bool = False) -> List[Dict]:
         """Get flattened list of all findings with enriched snippets"""
         all_findings = []
         for tool, findings in self.results.items():
             all_findings.extend(findings)
             
         self._enrich_code_snippets(all_findings)
+        
+        if not include_ignored:
+            # Filter out ignored findings
+            all_findings = [f for f in all_findings if not self.fp_manager.is_ignored(f)]
+            
         return all_findings
         
     def _enrich_code_snippets(self, findings: List[Dict]):
         """Ensure every finding has the actual code line"""
         for f in findings:
             # If snippet is missing or generic (like 'requires login'), read the file
-            snippet = f.get("code", "")
-            if not snippet or len(snippet) < 3 or "login" in snippet.lower():
+            snippet = f.get("code_snippet") or f.get("code")
+            if not snippet or len(snippet) < 3 or "login" in str(snippet).lower():
                 try:
                     file_path = f.get("file")
                     if not file_path:
@@ -126,26 +78,31 @@ class ScanOrchestrator:
                             lines = file.readlines()
                             line_num = int(f.get("line", 1))
                             if 0 < line_num <= len(lines):
-                                f["code"] = lines[line_num - 1].strip()
+                                f["code_snippet"] = lines[line_num - 1].strip()
                 except Exception:
                     pass # Keep original if reading fails
     
     def get_summary(self) -> Dict:
         """Get summary statistics"""
-        all_findings = self.get_all_findings()
+        active_findings = self.get_all_findings(include_ignored=False)
+        # We can detect suppressed count by differencing, or direct query
+        # Currently simple way:
+        total_raw = sum(len(r) for r in self.results.values())
+        suppressed = total_raw - len(active_findings)
         
         return {
-            "total_findings": len(all_findings),
+            "total_findings": len(active_findings),
+            "suppressed_findings": suppressed,
             "by_tool": {
-                "trivy": len(self.results["trivy"]),
-                "semgrep": len(self.results["semgrep"]),
-                "gitleaks": len(self.results["gitleaks"])
+                "trivy": len([f for f in active_findings if f.get("tool") == "trivy"]),
+                "semgrep": len([f for f in active_findings if f.get("tool") == "semgrep"]),
+                "gitleaks": len([f for f in active_findings if f.get("tool") == "gitleaks"])
             },
             "by_severity": {
-                "critical": sum(1 for f in all_findings if f.get("severity") == "CRITICAL"),
-                "high": sum(1 for f in all_findings if f.get("severity") == "HIGH"),
-                "medium": sum(1 for f in all_findings if f.get("severity") == "MEDIUM"),
-                "low": sum(1 for f in all_findings if f.get("severity") == "LOW")
+                "critical": sum(1 for f in active_findings if f.get("severity") == "CRITICAL"),
+                "high": sum(1 for f in active_findings if f.get("severity") == "HIGH"),
+                "medium": sum(1 for f in active_findings if f.get("severity") == "MEDIUM"),
+                "low": sum(1 for f in active_findings if f.get("severity") == "LOW")
             },
             "scan_duration_seconds": round(self.scan_duration, 2)
         }

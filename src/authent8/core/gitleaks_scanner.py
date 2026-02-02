@@ -129,7 +129,7 @@ paths = [
                 "message": f"Hardcoded secret found: {rule_id}",
                 
                 # Location
-                "file": Path(secret.get("File", "")).name,
+                "file": secret.get("File", ""),
                 "line": secret.get("StartLine", 0),
                 "code_snippet": "",  # Redacted by gitleaks
                 

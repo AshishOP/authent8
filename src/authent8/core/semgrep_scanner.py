@@ -133,7 +133,7 @@ class SemgrepScanner:
                 "message": message[:200],
                 
                 # Location
-                "file": Path(result.get("path", "")).name,
+                "file": result.get("path", ""),
                 "line": result.get("start", {}).get("line", 0),
                 "code_snippet": code_snippet,
                 
