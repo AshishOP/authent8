@@ -11,45 +11,46 @@ from typing import List, Dict
 class GitleaksScanner:
     """Wrapper for Gitleaks secret scanner"""
     
-    # Patterns to exclude (partial match - catches node_modules_12345 etc)
+    # Sane defaults for Gitleaks
     EXCLUDE_PATTERNS = [
         "node_modules", ".git", "dist", "build", "vendor", "__pycache__",
-        ".venv", "venv", "env", "virtualenv", ".virtualenv",
-        "coverage", ".nyc_output", ".coverage", "htmlcov",
-        ".env", ".env.", "env.", ".secret", "secret", ".keys",
-        ".md", "README", "INSTALL", "CHANGELOG", "LICENSE", "docs",
-        "install_tools", "test", "spec", "mock", "fixture", "demo",
-        ".min.js", ".min.css", ".bundle.", ".chunk.",
-        "package-lock", "yarn.lock", "poetry.lock", "Pipfile.lock",
-        ".pyc", ".pyo", ".egg", ".whl", "site-packages",
-        ".cache", ".tmp", "tmp", "temp", ".temp",
-        ".log", "logs", ".idea", ".vscode", ".DS_Store",
+        ".venv", "venv", "site-packages", ".cache", ".tmp",
+        "package-lock.json", "yarn.lock", "poetry.lock",
+        ".min.js", ".min.css", ".map", ".log"
     ]
     
     def __init__(self, project_path: Path):
         self.project_path = project_path
         self.config_path = Path(__file__).parent.parent / "config" / "gitleaks.toml"
     
-    def _create_gitleaks_config(self, tmpdir: str) -> str:
+    def _create_gitleaks_config(self, tmpdir: str, ignored_patterns: List[str] = None) -> str:
         """Create a temporary gitleaks config with exclusions"""
         import os
-        config_content = """
+        
+        # Format ignored patterns for TOML list
+        allowlist_items = [
+            "node_modules", ".git", "dist", "build", "vendor", "__pycache__",
+            ".venv", "venv", ".env.example", "package-lock.json", "yarn.lock"
+        ]
+        if ignored_patterns:
+            allowlist_items.extend(ignored_patterns)
+            
+        # Deduplicate and format for TOML
+        # Clean up patterns: remove leading/trailing slashes and escape dots
+        clean_items = []
+        for item in set(allowlist_items):
+            clean = item.replace(".", "\\.").replace("*", ".*")
+            clean_items.append(f"'''{clean}'''")
+            
+        toml_list = ",\n    ".join(clean_items)
+        
+        config_content = f"""
 [extend]
 useDefault = true
 
 [allowlist]
 paths = [
-    '''node_modules''',
-    '''\.git''',
-    '''dist''',
-    '''build''',
-    '''vendor''',
-    '''__pycache__''',
-    '''\.venv''',
-    '''venv''',
-    '''\.env\.example''',
-    '''package-lock\.json''',
-    '''yarn\.lock''',
+    {toml_list}
 ]
 """
         config_path = os.path.join(tmpdir, "gitleaks.toml")
@@ -57,7 +58,7 @@ paths = [
             f.write(config_content)
         return config_path
     
-    def scan(self) -> List[Dict]:
+    def scan(self, ignored_patterns: List[str] = None) -> List[Dict]:
         """Run Gitleaks scan and return normalized findings"""
         try:
             import tempfile
@@ -66,7 +67,7 @@ paths = [
             # Create temp dir for config and report
             with tempfile.TemporaryDirectory() as tmpdir:
                 report_path = os.path.join(tmpdir, "gitleaks_report.json")
-                config_path = self._create_gitleaks_config(tmpdir)
+                config_path = self._create_gitleaks_config(tmpdir, ignored_patterns)
                 
                 cmd = [
                     "gitleaks", "detect",
@@ -90,10 +91,11 @@ paths = [
                     with open(report_path, 'r') as f:
                         data = json.load(f)
                         if isinstance(data, list) and len(data) > 0:
-                            # Filter out files in excluded paths
+                            # Filter out files in excluded paths (both internal and user provided)
+                            combined_excludes = list(set(self.EXCLUDE_PATTERNS + (ignored_patterns or [])))
                             filtered_data = [
                                 s for s in data 
-                                if not any(excl in s.get("File", "") for excl in self.EXCLUDE_PATTERNS)
+                                if not any(excl in s.get("File", "") for excl in combined_excludes)
                             ]
                             return self._parse_results(filtered_data)
                 except (FileNotFoundError, json.JSONDecodeError):

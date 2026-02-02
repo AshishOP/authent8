@@ -68,7 +68,18 @@ irm https://raw.githubusercontent.com/AshishOP/authent8/main/install.ps1 | iex
 authent8 scan .
 ```
 
-That’s it! No accounts, no credit cards, no "Enterprise" signups. Just security.
+### How to skip certain folders (.a8ignore)
+If Authent8 is scanning folders you don't want (like your `build` or `temp` folders), simply create a file named `.a8ignore` in your project root.
+
+Add the folders or files you want to skip, one per line:
+```text
+# Ignore build artifacts
+dist/
+.next/
+# Ignore specific files
+secrets_test.py
+```
+Authent8 will automatically skip these and focus only on the code that matters.
 
 ---
 

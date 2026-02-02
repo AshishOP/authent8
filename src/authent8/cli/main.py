@@ -389,7 +389,22 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
     console.print(f"\n [#3b82f6]authent8[/#3b82f6] [#1a1a1a]│[/#1a1a1a] [#e5e5e5]Scanning:[/#e5e5e5] [#666666]{path}[/#666666]\n")
     
     project_path = Path(path)
-    exclude_dirs = {'node_modules', '.git', 'dist', 'build', 'vendor', '__pycache__', '.venv', 'venv', 'env', '.env', 'site-packages', '.tox', '.pytest_cache', '.mypy_cache', 'coverage', '.coverage', 'htmlcov', '.eggs', '*.egg-info'}
+    
+    try:
+        orchestrator = ScanOrchestrator(path)
+        if (project_path / ".a8ignore").exists():
+            console.print(f" [#3b82f6]ℹ[/#3b82f6] [#666666]Using .a8ignore for exclusions[/#666666]")
+    except Exception as e:
+        console.print(f"[#ff3333]Error:[/#ff3333] {e}")
+        return
+
+    # Use patterns from orchestrator (+ default ones)
+    exclude_dirs = set(orchestrator.ignored_patterns) | {
+        'node_modules', '.git', 'dist', 'build', 'vendor', '__pycache__', 
+        '.venv', 'venv', 'env', '.env', 'site-packages', '.tox', 
+        '.pytest_cache', '.mypy_cache', 'coverage', '.coverage', 
+        'htmlcov', '.eggs', '*.egg-info', '.next', '.cache', '.tmp'
+    }
     scannable_exts = {'.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rb', '.php', '.cs', '.yaml', '.yml', '.json'}
     
     # Collect all scannable files for progress display
@@ -397,12 +412,6 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
                  and f.is_file() and f.suffix.lower() in scannable_exts]
     
     total_files = len(all_files)
-    
-    try:
-        orchestrator = ScanOrchestrator(path)
-    except Exception as e:
-        console.print(f"[#ff3333]Error:[/#ff3333] {e}")
-        return
 
     start_time = time.time()
     findings = []

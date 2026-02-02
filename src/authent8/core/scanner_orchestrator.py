@@ -34,21 +34,49 @@ class ScanOrchestrator:
         # Verify project path exists
         if not self.project_path.exists():
             raise ValueError(f"Project path does not exist: {project_path}")
+            
+        self.ignored_patterns = self._load_ignore_patterns()
+
+    def _load_ignore_patterns(self) -> List[str]:
+        """Load patterns from .a8ignore file or use sensible defaults"""
+        # Sane defaults for almost all modern projects
+        patterns = [
+            "node_modules", ".git", "dist", "build", "vendor", "__pycache__", 
+            ".venv", "venv", ".next", ".cache", ".tmp", 
+            "0.pack", ".previewinfo", ".rscinfo", "prerender-manifest.json",
+            "server-reference-manifest.json", ".vercel", "site-packages",
+            "*.min.js", "*.min.css", "*.map", "*.log", "package-lock.json"
+        ]
+        
+        ignore_file = self.project_path / ".a8ignore"
+        if ignore_file.exists():
+            try:
+                with open(ignore_file, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#"):
+                            # Handle both folder/ and file.ext patterns
+                            patterns.append(line.rstrip("/"))
+            except Exception:
+                pass
+        
+        # Deduplicate and return
+        return list(set(patterns))
     
     def run_trivy(self) -> List[Dict]:
         """Run Trivy vulnerability scanner"""
         scanner = TrivyScanner(self.project_path)
-        return scanner.scan()
+        return scanner.scan(ignored_patterns=self.ignored_patterns)
     
     def run_semgrep(self) -> List[Dict]:
         """Run Semgrep SAST scanner"""
         scanner = SemgrepScanner(self.project_path)
-        return scanner.scan()
+        return scanner.scan(ignored_patterns=self.ignored_patterns)
     
     def run_gitleaks(self) -> List[Dict]:
         """Run Gitleaks secret scanner"""
         scanner = GitleaksScanner(self.project_path)
-        return scanner.scan()
+        return scanner.scan(ignored_patterns=self.ignored_patterns)
     
     def scan_all_parallel(self) -> Dict:
         """Run all scanners in parallel for speed"""

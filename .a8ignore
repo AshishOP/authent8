@@ -1,0 +1,36 @@
+# Authent8 Ignore File
+# Add directories or specific files you want to skip during security scans.
+
+# Build & Distribution
+dist/
+build/
+out/
+.next/
+.vercel/
+
+# Environment & Dependencies
+node_modules/
+vendor/
+venv/
+.venv/
+env/
+__pycache__/
+*.egg-info/
+
+# Cache & Temporary files
+.cache/
+.tmp/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Sensitive Metadata (often contains false positives)
+.rscinfo
+.previewinfo
+prerender-manifest.json
+server-reference-manifest.json
+0.pack
+*.manifest

@@ -15,7 +15,7 @@ class TrivyScanner:
         self.project_path = project_path
         self.config_path = Path(__file__).parent.parent / "config" / ".trivy.yaml"
     
-    def scan(self) -> List[Dict]:
+    def scan(self, ignored_patterns: List[str] = None) -> List[Dict]:
         """Run Trivy scan and return normalized findings"""
         try:
             cmd = [
@@ -23,9 +23,17 @@ class TrivyScanner:
                 "--config", str(self.config_path),
                 "--severity", "CRITICAL,HIGH,MEDIUM",
                 "--format", "json",
-                "--quiet",
-                str(self.project_path)
+                "--quiet"
             ]
+            
+            # Add ignore patterns
+            if ignored_patterns:
+                # Trivy uses comma separated lists for skips
+                # Most patterns from .a8ignore will be dirs
+                cmd.extend(["--skip-dirs", ",".join(ignored_patterns)])
+                cmd.extend(["--skip-files", ",".join(ignored_patterns)])
+
+            cmd.append(str(self.project_path))
             
             result = subprocess.run(
                 cmd,
