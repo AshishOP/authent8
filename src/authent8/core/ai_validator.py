@@ -130,14 +130,13 @@ class AIValidator:
                         "content": """You are a security expert validating security scan findings.
 For EACH finding, determine:
 1. is_false_positive (boolean) - Is this a false alarm? Common false positives:
-   - Test/mock data
-   - Example code (usually invalid credentials like '0000', 'EXAMPLE')
-   - Commented code
-   - Development dependencies
-   - Documentation examples
-   - Checksums (MD5 for ETag/Integrity is SAFE, only unsafe for passwords)
-   
-2. confidence (0-100) - How confident are you in this assessment?
+   - Test Files: Any file named '*test*', '*mock*', 'security_check.py', or inside 'tests/' folder is likely a False Positive.
+   - Install Scripts: 'install.sh', 'install_tools.py', 'setup.py' often require permissions (chmod 755) and downloads (urllib). These are False Positives.
+   - Documentation: Files like .md, .txt containing secrets are examples.
+   - Examples/Placeholders: Credentials like '0000', 'EXAMPLE', '123456'.
+   - Checksums: MD5 used for integrity/ETag is SAFE (False Positive).
+
+2. confidence (0-100) - How confident are you? (Higher for test files/examples)
 3. fix_suggestion (string) - One-line actionable fix if real issue
 4. reasoning (string) - Brief explanation (max 100 chars)
 
