@@ -63,11 +63,17 @@ class AIValidator:
                 model=self.model,
                 messages=[{"role": "user", "content": "ping"}],
                 max_tokens=5,
-                timeout=10 # Fast fail
+                timeout=12 
             )
             return True
         except Exception as e:
-            # Re-raise so wizard can handle and display error
+            err_msg = str(e).lower()
+            # Categorize the error for the CLI wizard
+            if "401" in err_msg or "unauthorized" in err_msg or "invalid_api_key" in err_msg:
+                raise Exception(f"AUTH_ERROR: {str(e)}")
+            if "model" in err_msg and ("404" in err_msg or "not found" in err_msg or "no such" in err_msg):
+                raise Exception(f"MODEL_ERROR: {str(e)}")
+            # Fallback
             raise e
 
     def validate_findings(self, findings: List[Dict]) -> List[Dict]:
