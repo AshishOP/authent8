@@ -13,18 +13,20 @@ if sys.stdout.encoding != 'utf-8':
 
 class AIValidator:
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        # Priority: explicit arg > AUTHENT8_AI_KEY > FASTROUTER_API_KEY > OPENAI_API_KEY > GITHUB_TOKEN
-        self.api_key = (
-            api_key or 
-            os.getenv("AUTHENT8_AI_KEY") or 
-            os.getenv("FASTROUTER_API_KEY") or 
-            os.getenv("OPENAI_API_KEY") or 
-            os.getenv("GITHUB_TOKEN")
-        )
+        # Determine API Key: use explicit arg ONLY if provided, otherwise check env
+        if api_key:
+            self.api_key = api_key
+        else:
+            self.api_key = (
+                os.getenv("AUTHENT8_AI_KEY") or 
+                os.getenv("FASTROUTER_API_KEY") or 
+                os.getenv("OPENAI_API_KEY") or 
+                os.getenv("GITHUB_TOKEN")
+            )
         
-        # Skip placeholder keys
-        if self.api_key and self.api_key.startswith("your-"):
-            self.api_key = os.getenv("AUTHENT8_AI_KEY") or os.getenv("FASTROUTER_API_KEY") or os.getenv("GITHUB_TOKEN")
+        # Skip placeholder keys if they came from env
+        if self.api_key and isinstance(self.api_key, str) and self.api_key.startswith("your-"):
+            self.api_key = None
         
         # Check for custom base URL
         if not base_url:
