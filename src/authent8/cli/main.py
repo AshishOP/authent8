@@ -1060,5 +1060,10 @@ def scan(path, no_ai, verbose, output):
     target = path or str(Path.cwd())
     run_scan_with_progress(target, no_ai=no_ai, verbose=verbose, output=output)
 
+@cli.command(name="manage-fps")
+def manage_fps():
+    """Manage false positives (ignored findings)"""
+    manage_false_positives_menu()
+
 if __name__ == "__main__":
     cli()

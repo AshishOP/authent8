@@ -85,6 +85,18 @@ Authent8 will automatically skip these and focus only on the code that matters.
 
 ---
 
+## 🛡️ Managing False Positives
+
+Sometimes scanners flag things that are actually safe (like a secret in a test file).
+
+1. **Mark as False Positive:** When a scan finishes, choose "🛡️ False Positives" from the menu to see and ignore specific issues permanently.
+2. **Restore Findings:** If you made a mistake, you can restore ignored items:
+```bash
+authent8 manage-fps
+```
+
+---
+
 ## 🤖 AI Setup (The "Smart" Way)
 
 Authent8 comes with a **built-in AI Setup Wizard**. You can connect your favorite AI provider (like OpenAI, Google Gemini, or even a local Ollama) to get high-quality explanations and fix suggestions for every bug found.
