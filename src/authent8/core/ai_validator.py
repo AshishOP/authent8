@@ -78,25 +78,81 @@ class AIValidator:
 
     def validate_findings(self, findings: List[Dict]) -> List[Dict]:
         """
-        Validate findings with AI - removes false positives
+        Validate findings using Heuristics + AI
         """
         if not findings:
             return []
+            
+        # 1. Apply deterministic heuristics first (Fast & Accurate)
+        self._apply_heuristics(findings)
+        
+        # 2. Identify what still needs AI validation
+        to_validate_with_ai = [f for f in findings if not f.get("validated")]
+        
+        if not to_validate_with_ai:
+            return findings
         
         if not self.client:
             print("⚠️  GITHUB_TOKEN (or OPENAI_API_KEY) not set. Skipping AI validation.")
             return findings
 
-        # Process in batches of 3 to avoid token limits (413 errors)
-        # Smaller batches = more reliable, especially for code snippets
+        # 3. Process remaining with AI in batches
         validated = []
         batch_size = 3
         
-        for i in range(0, len(findings), batch_size):
-            batch = findings[i:i+batch_size]
-            validated.extend(self._validate_batch(batch))
-        
-        return validated
+        for i in range(0, len(to_validate_with_ai), batch_size):
+            batch = to_validate_with_ai[i:i+batch_size]
+            self._validate_batch(batch) # Modifies in-place
+            
+        return findings
+
+    def _apply_heuristics(self, findings: List[Dict]):
+        """Apply deterministic rules to catch obvious false positives"""
+        for f in findings:
+            path = f.get("file", "").lower()
+            rule = str(f.get("rule_id", "")).lower()
+            code = str(f.get("code_snippet", "")).lower()
+            
+            # RULE 1: Test Files & Security Checks
+            if any(x in path for x in ["security_check", "test", "mock", "vulnerable"]):
+                f.update({
+                    "is_false_positive": True,
+                    "ai_confidence": 100,
+                    "ai_reasoning": "File is a known test/demo file.",
+                    "validated": True
+                })
+                continue
+
+            # RULE 2: Install Scripts (urllib/chmod)
+            if "install" in path or "setup.py" in path:
+                if "urllib" in rule or "permissions" in rule or "chmod" in code:
+                    f.update({
+                        "is_false_positive": True,
+                        "ai_confidence": 100,
+                        "ai_reasoning": "Standard installation script behavior.",
+                        "validated": True
+                    })
+                    continue
+
+            # RULE 3: Documentation
+            if path.endswith(".md") or path.endswith(".txt"):
+                f.update({
+                    "is_false_positive": True,
+                    "ai_confidence": 100,
+                    "ai_reasoning": "Secrets in documentation are likely examples.",
+                    "validated": True
+                })
+                continue
+                
+            # RULE 4: False Positive Logic File
+            if "false_positives.py" in path:
+                 f.update({
+                    "is_false_positive": True,
+                    "ai_confidence": 100,
+                    "ai_reasoning": "Logic handling false positives often mimics vulnerabilities.",
+                    "validated": True
+                })
+                 continue
     
     def _validate_batch(self, findings: List[Dict]) -> List[Dict]:
         """Validate a batch of findings"""
