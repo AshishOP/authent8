@@ -34,3 +34,4 @@ prerender-manifest.json
 server-reference-manifest.json
 0.pack
 *.manifest
+.authent8_fp.json
