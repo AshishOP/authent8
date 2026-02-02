@@ -8,239 +8,140 @@
 
 <p align="center">
   <strong>The security scanner that actually respects your privacy.</strong><br>
-  Find vulnerabilities in your code without sending a single byte to the cloud.
+  Stop sending your precious code to the cloud just to check for bugs.
+</p>
+
+<p align="center">
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-what-is-authent8">About</a> •
+  <a href="#-ai-setup-new">AI Setup</a> •
+  <a href="#-why-it-matters">Philosophy</a>
 </p>
 
 ---
 
 ## 🎬 See It In Action
 
-### Web Interface
-![Web UI Demo](Public/web_ui.gif)
+### Your Daily Security Partner
+Authent8 scans your code in seconds and shows you exactly what's wrong, why it's a risk, and how to fix it—all without your code ever leaving your machine.
 
-### CLI Demo  
 ![CLI Demo](Public/Demo_CLI.gif)
 
 ---
 
 ## 🤔 What is Authent8?
 
-Imagine you're building an app and you want to check if your code has security issues - like accidentally leaving passwords in your code, or having SQL injection bugs that hackers could exploit.
+Imagine you’re building your dream house. You wouldn't invite a stranger to walk through every room, look in your safe, and take photos of your blueprints just to check if the locks are secure, right?
 
-**The problem?** Most security scanners upload your code to their servers. That means:
-- Your proprietary code goes to someone else's computer
-- Your API keys and secrets might be exposed
-- You have no idea what happens to your code after
+**That’s what cloud-based security scanners do.** They upload your code to their servers. 
 
-**Authent8 is different.** It runs 100% on YOUR computer. Your code never leaves your machine. Ever.
+**Authent8 is different.** It’s like having a trusted security expert who comes to your house, does the inspection right there with you, and leaves without taking anything. **Your code stays 100% on your computer.**
 
-## ✨ What Can It Find?
+### ✨ What can it find for you?
 
-| Issue Type | Example | Why It's Bad |
-|------------|---------|--------------|
-| 🔑 **Hardcoded Secrets** | `API_KEY = "sk-12345..."` | Hackers can steal your API access |
-| 💉 **SQL Injection** | `"SELECT * FROM users WHERE id=" + user_input` | Attackers can steal your database |
-| 🖥️ **Command Injection** | `os.system(user_input)` | Hackers can run commands on your server |
-| 📁 **Path Traversal** | `open(user_provided_path)` | Attackers can read any file |
-| 🔓 **Insecure Deserialization** | `pickle.loads(user_data)` | Can lead to remote code execution |
+*   🔑 **Accidental Secrets:** Did you leave an API key or password in your code?
+*   💉 **Injection Risks:** Can a hacker "inject" malicious commands into your database?
+*   🖥️ **System Holes:** Are there ways for attackers to run arbitrary commands on your server?
+*   📁 **File Exposure:** Can someone trick your app into reading private files?
+*   📦 **Vulnerable Packages:** Are you using a library that has a known security flaw?
 
-### 🗑️ Uninstallation
+---
 
-To remove Authent8 completely:
-```bash
-authent8 --uninstall
-```
-Or manually:
-```bash
-pipx uninstall authent8
-```
-
-## 🚀 Quick Start (2 minutes)
+## 🚀 Quick Start (In 60 Seconds)
 
 ### Step 1: Install
+Open your terminal and paste one of these:
 
-**Linux/macOS:**
+**Linux / macOS:**
 ```bash
-curl -fsSL https://authent8.dev/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash
 ```
 
-**Windows (PowerShell as Admin):**
+**Windows (PowerShell):**
 ```powershell
-irm https://authent8.dev/install.ps1 | iex
+irm https://raw.githubusercontent.com/AshishOP/authent8/main/install.ps1 | iex
 ```
 
-### Step 2: Scan Your Code
-
+### Step 2: Run Your First Scan
 ```bash
-# Scan current folder
-authent8 .
-
-# Scan a specific project
-authent8 /path/to/your/project
-
-# Scan with AI-powered explanations (optional)
-export OPENAI_API_KEY=your-key
-authent8 . --ai
+# Scan the folder you are currently in
+authent8 scan .
 ```
 
-That's it! No signup, no account, no cloud. Just security scanning.
+That’s it! No accounts, no credit cards, no "Enterprise" signups. Just security.
 
-## 📊 Example Output
+---
 
-```
+## 🤖 AI Setup (The "Smart" Way)
+
+Authent8 comes with a **built-in AI Setup Wizard**. You can connect your favorite AI provider (like OpenAI, Google Gemini, or even a local Ollama) to get high-quality explanations and fix suggestions for every bug found.
+
+### How to set it up:
+1. Run `authent8` to open the interactive menu.
+2. Select **⚙️ Configuration**.
+3. Choose **Setup AI Provider**.
+4. Paste your API Key and pick a model.
+
+**Privacy Note:** Even with AI enabled, we **never** send your whole file. We only send a tiny snippet of the specific bugged line so the AI can explain it to you.
+
+---
+
+## 📊 Example Report
+
+When Authent8 finds something, it doesn't just scream at you. It gives you a clean, readable report:
+
+```text
 󰒃 authent8 v1.5.0
 
-target: my-project  files: 42  ai: off
+target: my-project  files: 24  ai: on
 
 scanning...
-✓ scan complete 3.2s
+✓ scan complete 2.4s
 
 ⚠ CRITICAL
-  • gitleaks: 2 secrets found
-
-found 8 issues: 2 critical · 3 high · 3 medium
-
-  ● gitleaks Hardcoded API key found: generic-api-key
-           config.py:15
-  ● semgrep SQL Injection: User input in database query
-           models/user.py:23
-  ● semgrep Command Injection: os.system with user input
-           utils/runner.py:41
-  ... +5 more
+  • gitleaks: 1 secret found in config.py:12
+  
+  [AI suggestion]: Your AWS_SECRET_KEY is exposed. Move it to an .env file.
+  [Reasoning]: Hardcoded secrets can be stolen if this code is committed.
 
 🔒 your code stayed local · 0 bytes sent to cloud
 ```
 
-## 🛠️ How It Works (Simple Explanation)
-
-```
-┌─────────────────┐
-│   Your Code     │
-│   (on your PC)  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────────────┐
-│           Authent8 Scanner              │
-│  ┌─────────┐ ┌─────────┐ ┌──────────┐  │
-│  │ Trivy   │ │ Semgrep │ │ Gitleaks │  │
-│  │(vulns)  │ │(code)   │ │(secrets) │  │
-│  └────┬────┘ └────┬────┘ └────┬─────┘  │
-│       │           │           │         │
-│       └───────────┼───────────┘         │
-│                   ▼                     │
-│         Combined Results                │
-└────────────────────┬────────────────────┘
-                     │
-                     ▼
-           ┌─────────────────┐
-           │  You See Issues │
-           │  (all local!)   │
-           └─────────────────┘
-```
-
-**What each scanner does:**
-- **Trivy** - Finds known vulnerabilities in your dependencies (like "log4j" type issues)
-- **Semgrep** - Finds bad code patterns (like SQL injection, command injection)
-- **Gitleaks** - Finds secrets you accidentally committed (API keys, passwords)
-
-## 🤖 Optional: AI-Powered Explanations
-
-If you add an OpenAI API key, Authent8 can explain each vulnerability in plain English and suggest fixes:
-
-```bash
-export OPENAI_API_KEY=sk-your-key-here
-authent8 . --ai
-```
-
-**Important:** Even with AI enabled, your SOURCE CODE never leaves your machine. We only send the vulnerability descriptions (not your code) to get explanations.
+---
 
 ## 💡 Why Privacy Matters
 
-Think about what's in your codebase:
-- Database credentials
-- API keys (AWS, Stripe, etc.)
-- Business logic (your secret sauce)
-- User data handling code
+Your code is your intellectual property. It contains your business logic, your unique ideas, and your internal configurations. 
 
-Would you hand all that to a stranger? That's what most cloud scanners ask you to do.
+Most security tools demand that you "Trust them" with your code in their cloud. We believe **Trust is earned by not asking for your data at all.**
 
-**With Authent8:**
-- ✅ Your code stays on your machine
-- ✅ No accounts or signups
-- ✅ No telemetry or tracking
-- ✅ Works completely offline
-- ✅ Open source - verify it yourself
+*   ✅ **Works Offline:** Scan your code on a plane or in a bunker.
+*   ✅ **Zero Tracking:** We don't track your usage, your IP, or your findings.
+*   ✅ **Open Source:** You can read our code to see exactly how we keep yours safe.
 
-## 📋 Requirements
+---
 
-- Python 3.9+
-- That's it!
+## 🗑️ Uninstallation
 
-The installer handles everything else (Trivy, Semgrep, Gitleaks).
-
-## 🆘 Need Help?
-
-**Scan taking too long?**
+We’ll be sad to see you go, but we won't make it hard:
 ```bash
-authent8 . --fast  # Skip some slower checks
+authent8 --uninstall
 ```
 
-**Want more details?**
-```bash
-authent8 . -v  # Verbose mode
-```
+---
 
-**Export results?**
-```bash
-authent8 . --output results.json
-```
+## 🛠️ Built On Giants
 
-## 🤝 Contributing
-
-Found a bug? Have an idea? PRs welcome!
-
-```bash
-git clone https://github.com/AshishOP/authent8
-cd authent8
-pip install -e .
-```
-
-## 🏗️ Technology Stack
-
-| Component | Technology | Why We Chose It |
-|-----------|------------|-----------------|
-| **Core Language** | Python 3.9+ | Universal, readable, great ecosystem |
-| **CLI Framework** | Rich + Typer | Beautiful terminal UI with colors |
-| **Vulnerability Scanner** | Trivy | Industry standard, fast, comprehensive |
-| **Code Analysis** | Semgrep | Pattern-based, no false positives |
-| **Secret Detection** | Gitleaks | Fastest secret scanner available |
-| **AI Layer** | OpenAI GPT-4o-mini | Fast, accurate code explanations |
-
-## 🏛️ Architecture
-
-```
-authent8/
-├── cli/                 # Command-line interface
-│   └── main.py         # Entry point, argument parsing
-├── core/               # Business logic
-│   ├── scanner_orchestrator.py  # Coordinates all scanners
-│   ├── trivy_scanner.py         # CVE/dependency scanning
-│   ├── semgrep_scanner.py       # Code pattern analysis
-│   ├── gitleaks_scanner.py      # Secret detection
-│   └── ai_validator.py          # Optional AI explanations
-└── config/             # Scanner configurations
-    ├── .semgrep.yml    # Custom security rules
-    └── gitleaks.toml   # Secret patterns
-```
-
-## 📜 License
-
-MIT - Use it however you want!
+Authent8 orchestrates the world's best open-source security engines:
+*   **Trivy:** For scanning your packages/dependencies.
+*   **Semgrep:** For finding dangerous code patterns.
+*   **Gitleaks:** For hunting down accidentally saved passwords.
+*   **Rich:** For that beautiful terminal interface.
 
 ---
 
 <p align="center">
   <strong>Built for developers who care about privacy 🔒</strong><br>
-  <a href="https://authent8.vercel.app">authent8</a> · <a href="AI_IMPACT_STATEMENT.md">AI Impact Statement</a>
+  <a href="https://authent8.vercel.app">Official Website</a> · <a href="AI_IMPACT_STATEMENT.md">AI Impact Statement</a>
 </p>
+
