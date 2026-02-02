@@ -40,7 +40,63 @@ class ScanOrchestrator:
             
         self.ignored_patterns = self._load_ignore_patterns()
 
-    # ... (skipping unchanged methods) ...
+    def _load_ignore_patterns(self) -> List[str]:
+        """Load patterns from .a8ignore file or use sensible defaults"""
+        # Sane defaults for almost all modern projects
+        patterns = [
+            "node_modules", ".git", "dist", "build", "vendor", "__pycache__", 
+            ".venv", "venv", ".next", ".cache", ".tmp", 
+            "0.pack", ".previewinfo", ".rscinfo", "prerender-manifest.json",
+            "server-reference-manifest.json", ".vercel", "site-packages",
+            "*.min.js", "*.min.css", "*.map", "*.log", "package-lock.json"
+        ]
+        
+        ignore_file = self.project_path / ".a8ignore"
+        if ignore_file.exists():
+            try:
+                with open(ignore_file, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#"):
+                            # Handle both folder/ and file.ext patterns
+                            patterns.append(line.rstrip("/"))
+            except Exception:
+                pass
+        
+        # Deduplicate and return
+        return list(set(patterns))
+
+    def run_trivy(self) -> List[Dict]:
+        """Run Trivy vulnerability scanner"""
+        scanner = TrivyScanner(self.project_path)
+        return scanner.scan(ignored_patterns=self.ignored_patterns)
+    
+    def run_semgrep(self) -> List[Dict]:
+        """Run Semgrep SAST scanner"""
+        scanner = SemgrepScanner(self.project_path)
+        return scanner.scan(ignored_patterns=self.ignored_patterns)
+    
+    def run_gitleaks(self) -> List[Dict]:
+        """Run Gitleaks secret scanner"""
+        scanner = GitleaksScanner(self.project_path)
+        return scanner.scan(ignored_patterns=self.ignored_patterns)
+    
+    def scan_all_parallel(self) -> Dict:
+        """Run all scanners in parallel for speed"""
+        start_time = time.time()
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            future_trivy = executor.submit(self.run_trivy)
+            future_semgrep = executor.submit(self.run_semgrep)
+            future_gitleaks = executor.submit(self.run_gitleaks)
+            
+            # Collect results
+            self.results["trivy"] = future_trivy.result()
+            self.results["semgrep"] = future_semgrep.result()
+            self.results["gitleaks"] = future_gitleaks.result()
+        
+        self.scan_duration = time.time() - start_time
+        return self.results
 
     def get_all_findings(self, include_ignored: bool = False) -> List[Dict]:
         """Get flattened list of all findings with enriched snippets"""
