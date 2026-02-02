@@ -194,9 +194,8 @@ if [[ "$OS" == "macos" ]]; then
 fi
 export PATH="$HOME/.local/bin:$PATH"
 
-echo ""
-echo -e "${YELLOW}Optional: Set your AI API key for smart validation:${NC}"
-echo -e "  export OPENAI_API_KEY=your-key-here"
+echo -e "${YELLOW}💡 Pro Tip: Stop managing .env files manually!${NC}"
+echo -e "   Run ${BLUE}authent8${NC} and go to ${BLUE}⚙ Configuration${NC} to set up your AI key interactively."
 echo ""
 
 # Launch

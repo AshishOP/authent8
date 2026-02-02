@@ -141,9 +141,8 @@ Write-Green "✓ Installation complete!"
 Write-Green "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 Write-Host ""
 Write-Host "Run " -NoNewline; Write-Blue "authent8" -NoNewline; Write-Host " to start scanning!"
-Write-Host ""
-Write-Yellow "Optional: Set your AI API key for smart validation:"
-Write-Host '  $env:OPENAI_API_KEY = "your-key-here"'
+Write-Yellow "💡 Pro Tip: Stop managing environment variables manually!"
+Write-Host "   Run " -NoNewline; Write-Blue "authent8" -NoNewline; Write-Host " and go to " -NoNewline; Write-Blue "⚙ Configuration" -NoNewline; Write-Host " to set up your AI key interactively."
 Write-Host ""
 
 # Note about restart
