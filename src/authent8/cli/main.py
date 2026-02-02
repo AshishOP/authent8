@@ -878,14 +878,30 @@ def run_setup_wizard():
 
     # 2. Model
     models = provider_data.get("models", [])
-    default_model = models[0] if models else "gpt-4o-mini"
     
-    hint = f" (Suggestions: {', '.join(models)})" if models else ""
-    model = questionary.text(
-        f"Enter AI Model ID{hint}:",
-        default=default_model,
-        style=custom_style
-    ).ask()
+    if models:
+        # For known providers, show a selection list
+        choices = models + ["Custom Model ID..."]
+        model_selection = questionary.select(
+            "Select AI Model:",
+            choices=choices,
+            style=custom_style
+        ).ask()
+        
+        if not model_selection:
+            return
+            
+        if model_selection == "Custom Model ID...":
+            model = questionary.text("Enter Model ID:", style=custom_style).ask()
+        else:
+            model = model_selection
+    else:
+        # For custom/unknown providers, use text input
+        model = questionary.text(
+            "Enter AI Model ID:",
+            default="gpt-4o",
+            style=custom_style
+        ).ask()
     
     if not model:
         return
