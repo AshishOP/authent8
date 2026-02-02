@@ -1,0 +1,15 @@
+{
+  "hashes": [
+    "6ba1a13eef004af080b2500eb0d9880b"
+  ],
+  "findings": [
+    {
+      "fp_hash": "6ba1a13eef004af080b2500eb0d9880b",
+      "rule_id": "generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value",
+      "file": "/home/ashish/Desktop/PRD/authent8/authent8_report_20260203_015607.json",
+      "line": 12,
+      "severity": "HIGH",
+      "code": "\"code_snippet\": \"AWS_SECRET_KEY = \\\"AKIA1234567890ABCDEF\\\"\","
+    }
+  ]
+}
