@@ -913,7 +913,9 @@ def run_setup_wizard():
         err_msg = str(e)
         if "AUTH_ERROR" in err_msg:
             console.print(f"\n [#ff3333]❌ AUTHENTICATION FAILED[/#ff3333]")
-            console.print(f" [#666666]The API Key provided is invalid for {provider_name}.[/#666666]")
+            console.print(f" [#666666]The API Key was rejected by {provider_name}.[/#666666]")
+            console.print(f" [#666666]Note: This can also happen if your key is correct but you don't[/#666666]")
+            console.print(f" [#666666]have access to the model '{model}'.[/#666666]")
         elif "MODEL_ERROR" in err_msg:
             console.print(f"\n [#ff3333]❌ MODEL NOT FOUND[/#ff3333]")
             console.print(f" [#666666]The model '{model}' does not exist on this provider.[/#666666]")
