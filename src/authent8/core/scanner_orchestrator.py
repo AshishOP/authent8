@@ -96,11 +96,39 @@ class ScanOrchestrator:
         return self.results
     
     def get_all_findings(self) -> List[Dict]:
-        """Get flattened list of all findings"""
+        """Get flattened list of all findings with enriched snippets"""
         all_findings = []
         for tool, findings in self.results.items():
             all_findings.extend(findings)
+            
+        self._enrich_code_snippets(all_findings)
         return all_findings
+        
+    def _enrich_code_snippets(self, findings: List[Dict]):
+        """Ensure every finding has the actual code line"""
+        for f in findings:
+            # If snippet is missing or generic (like 'requires login'), read the file
+            snippet = f.get("code", "")
+            if not snippet or len(snippet) < 3 or "login" in snippet.lower():
+                try:
+                    file_path = f.get("file")
+                    if not file_path:
+                        continue
+                        
+                    # Handle both absolute and relative paths
+                    full_path = self.project_path / file_path
+                    if not full_path.exists():
+                        # Maybe it is already absolute?
+                        full_path = Path(file_path)
+                        
+                    if full_path.exists() and full_path.is_file():
+                        with open(full_path, 'r', errors='ignore') as file:
+                            lines = file.readlines()
+                            line_num = int(f.get("line", 1))
+                            if 0 < line_num <= len(lines):
+                                f["code"] = lines[line_num - 1].strip()
+                except Exception:
+                    pass # Keep original if reading fails
     
     def get_summary(self) -> Dict:
         """Get summary statistics"""
