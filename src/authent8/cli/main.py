@@ -843,6 +843,26 @@ def run_interactive_loop():
         elif choice == "Configuration":
             run_configuration_menu()
 
+        elif choice == "Update":
+            console.print("\n[#3b82f6]🔄 Checking for updates...[/#3b82f6]")
+            try:
+                import subprocess
+                # Run pipx upgrade
+                res = subprocess.run(["pipx", "upgrade", "authent8"], capture_output=True, text=True)
+                if res.returncode == 0:
+                    if "already at the latest version" in res.stdout:
+                        console.print("[#10b981]✓ Authent8 is already up to date![/#10b981]")
+                    else:
+                        console.print("[#10b981]✓ Success! Updated to latest version.[/#10b981]")
+                        console.print("[yellow]Please restart authent8 to apply changes.[/yellow]")
+                        time.sleep(2)
+                        os._exit(0)
+                else:
+                    console.print(f"[#ff3333]Error updating:[/#ff3333] {res.stderr}")
+            except Exception as e:
+                console.print(f"[#ff3333]Update failed:[/#ff3333] {e}")
+            input("\nPress Enter to return...")
+
 def manage_false_positives_menu():
     from authent8.core.false_positives import FalsePositiveManager
     
@@ -872,26 +892,6 @@ def manage_false_positives_menu():
             mgr.remove(fp_hash)
         console.print(f"\n[green]✓ Restored {len(to_restore)} findings.[/green]")
         time.sleep(1)
-        
-        elif choice == "Update":
-            console.print("\n[#3b82f6]🔄 Checking for updates...[/#3b82f6]")
-            try:
-                import subprocess
-                # Run pipx upgrade
-                res = subprocess.run(["pipx", "upgrade", "authent8"], capture_output=True, text=True)
-                if res.returncode == 0:
-                    if "already at the latest version" in res.stdout:
-                        console.print("[#10b981]✓ Authent8 is already up to date![/#10b981]")
-                    else:
-                        console.print("[#10b981]✓ Success! Updated to latest version.[/#10b981]")
-                        console.print("[yellow]Please restart authent8 to apply changes.[/yellow]")
-                        time.sleep(2)
-                        os._exit(0)
-                else:
-                    console.print(f"[#ff3333]Error updating:[/#ff3333] {res.stderr}")
-            except Exception as e:
-                console.print(f"[#ff3333]Update failed:[/#ff3333] {e}")
-            input("\nPress Enter to return...")
 
 def run_configuration_menu():
     from authent8.config import get_ai_config, load_config
