@@ -113,7 +113,7 @@ rm -rf /tmp/authent8-install 2>/dev/null || true
 
 # Use pipx for isolation (works on all distros including Arch)
 echo -e "       ${YELLOW}→${NC} Installing from GitHub..."
-$PIPX_CMD install git+https://github.com/AshishOP/authent8.git 2>/dev/null || {
+$PIPX_CMD install git+https://github.com/AshishOP/authent8.git --force 2>/dev/null || {
     echo -e "       ${YELLOW}→${NC} Cloning and installing locally..."
     cd /tmp
     rm -rf authent8-install 2>/dev/null
