@@ -14,6 +14,7 @@
 <p align="center">
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-what-is-authent8">About</a> •
+  <a href="#how-to-skip-certain-folders-a8ignore">Exclusions</a> •
   <a href="#-ai-setup-new">AI Setup</a> •
   <a href="#-why-it-matters">Philosophy</a>
 </p>
@@ -44,6 +45,7 @@ Imagine you’re building your dream house. You wouldn't invite a stranger to wa
 *   🖥️ **System Holes:** Are there ways for attackers to run arbitrary commands on your server?
 *   📁 **File Exposure:** Can someone trick your app into reading private files?
 *   📦 **Vulnerable Packages:** Are you using a library that has a known security flaw?
+*   🚫 **Custom Exclusions:** Use `.a8ignore` to skip build folders, libraries, or noisy files.
 
 ---
 
