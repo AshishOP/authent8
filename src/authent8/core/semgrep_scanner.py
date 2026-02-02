@@ -47,6 +47,12 @@ class SemgrepScanner:
                 "--config", "p/command-injection",    # Command injection
                 "--config", "p/xss",                  # XSS patterns
                 "--config", "p/insecure-transport",   # HTTP/TLS issues
+                "--config", "p/docker",               # Dockerfile security
+                "--config", "p/kubernetes",           # Kubernetes manifests
+                "--config", "p/terraform",            # Terraform security
+                "--config", "p/aws-security",         # AWS best practices
+                "--config", "p/react",                # React security patterns
+                "--config", "p/typescript",           # TypeScript specific
                 "--json",
                 "--quiet",
                 "--no-git-ignore",    # Don't skip untracked files

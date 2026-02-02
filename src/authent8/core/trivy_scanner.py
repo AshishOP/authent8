@@ -22,6 +22,7 @@ class TrivyScanner:
                 "trivy", "fs",
                 "--config", str(self.config_path),
                 "--severity", "CRITICAL,HIGH,MEDIUM",
+                "--scanners", "vuln,misconfig", # Enable IaC scanning
                 "--format", "json",
                 "--quiet"
             ]
