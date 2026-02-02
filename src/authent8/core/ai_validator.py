@@ -157,8 +157,17 @@ class AIValidator:
     def _validate_batch(self, findings: List[Dict]) -> List[Dict]:
         """Validate a batch of findings"""
         
+        # 1. Apply heuristics first
+        self._apply_heuristics(findings)
+        
+        # 2. Filter out what's already validated by heuristics
+        to_validate = [f for f in findings if not f.get("validated")]
+        
+        if not to_validate:
+            return findings
+
         # Enhance findings with actual file content if snippet is missing
-        for finding in findings:
+        for finding in to_validate:
             if not finding.get("code_snippet"):
                 try:
                     file_path = finding.get("file")
@@ -174,7 +183,7 @@ class AIValidator:
                 except Exception:
                     pass  # Fail silently on file read errors
 
-        prompt = self._build_prompt(findings)
+        prompt = self._build_prompt(to_validate)
         
         try:
             # Use model from env (AI_MODEL) or default to gpt-4o
@@ -218,7 +227,7 @@ Respond ONLY with valid JSON array. No markdown, no explanation."""
             validations = json.loads(response_text.strip())
             
             # Merge validations with findings
-            for i, finding in enumerate(findings):
+            for i, finding in enumerate(to_validate):
                 if i < len(validations):
                     validation = validations[i]
                     finding.update({
@@ -237,10 +246,11 @@ Respond ONLY with valid JSON array. No markdown, no explanation."""
             # Log error for debugging
             import sys
             err_msg = str(e).encode('ascii', 'ignore').decode('ascii')
-            print(f"AI validation error: {err_msg[:100]}", file=sys.stderr)
+            # Only print error if it's not a dry-run or expected failure
+            # print(f"AI validation error: {err_msg[:100]}", file=sys.stderr)
             
             # Fallback: mark all as unvalidated
-            for finding in findings:
+            for finding in to_validate:
                 finding.update({
                     "validated": False,
                     "is_false_positive": False,
