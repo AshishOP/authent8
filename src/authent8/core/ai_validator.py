@@ -12,8 +12,8 @@ if sys.stdout.encoding != 'utf-8':
         pass
 
 class AIValidator:
-    def __init__(self, api_key: str = None, base_url: str = None):
-        # Priority: AUTHENT8_AI_KEY > FASTROUTER_API_KEY > OPENAI_API_KEY > GITHUB_TOKEN
+    def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
+        # Priority: explicit arg > AUTHENT8_AI_KEY > FASTROUTER_API_KEY > OPENAI_API_KEY > GITHUB_TOKEN
         self.api_key = (
             api_key or 
             os.getenv("AUTHENT8_AI_KEY") or 
@@ -40,18 +40,33 @@ class AIValidator:
         
         self.base_url = base_url
         
-        # Model override from env
-        self.model = os.getenv("AUTHENT8_AI_MODEL") or os.getenv("AI_MODEL", "gpt-4o-mini")
+        # Model override hierarchy
+        self.model = model or os.getenv("AUTHENT8_AI_MODEL") or os.getenv("AI_MODEL", "gpt-4o-mini")
 
         if self.api_key:
-            # Special case for Gemini - they sometimes need version in path
-            # but usually OpenAI-compatible endpoint works fine
             self.client = OpenAI(
                 api_key=self.api_key,
                 base_url=self.base_url
             )
         else:
             self.client = None
+
+    def test_connection(self) -> bool:
+        """Test connection to the AI provider with a dummy request"""
+        if not self.client:
+            return False
+        try:
+            # Minimal request to verify key and model existence
+            self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=5,
+                timeout=10 # Fast fail
+            )
+            return True
+        except Exception as e:
+            # Re-raise so wizard can handle and display error
+            raise e
 
     def validate_findings(self, findings: List[Dict]) -> List[Dict]:
         """

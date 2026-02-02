@@ -894,6 +894,27 @@ def run_setup_wizard():
     if provider_name == "Custom (OpenAI Compatible)":
         base_url = questionary.text("Enter Base URL:", default="https://api.openai.com/v1").ask()
 
+    # 4. Test Connection
+    console.print(f"\n[#3b82f6]⏳ Verifying connection to {provider_name}...[/#3b82f6]")
+    try:
+        from authent8.core.ai_validator import AIValidator
+        test_validator = AIValidator(api_key=api_key, base_url=base_url, model=model)
+        test_validator.test_connection()
+        console.print("[green]✓ Connection verified![/green]")
+    except Exception as e:
+        err_msg = str(e)
+        if "401" in err_msg or "unauthorized" in err_msg.lower():
+            console.print(f"\n[#ff3333]❌ Authentication Failed: Invalid API Key.[/#ff3333]")
+        elif "404" in err_msg or "model_not_found" in err_msg.lower():
+            console.print(f"\n[#ff3333]❌ Model Error: '{model}' not found for this provider.[/#ff3333]")
+        else:
+            console.print(f"\n[#ff3333]❌ Connection Error:[/#ff3333] {err_msg[:100]}")
+        
+        if not questionary.confirm("Save anyway?", default=False, style=custom_style).ask():
+            console.print("[yellow]Setup cancelled.[/yellow]")
+            time.sleep(1)
+            return
+
     # Save
     save_config({
         "AUTHENT8_AI_PROVIDER": provider_name,
