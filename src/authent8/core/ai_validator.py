@@ -13,27 +13,39 @@ if sys.stdout.encoding != 'utf-8':
 
 class AIValidator:
     def __init__(self, api_key: str = None, base_url: str = None):
-        # Priority: FASTROUTER_API_KEY > OPENAI_API_KEY > GITHUB_TOKEN
-        self.api_key = api_key or os.getenv("FASTROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GITHUB_TOKEN")
+        # Priority: AUTHENT8_AI_KEY > FASTROUTER_API_KEY > OPENAI_API_KEY > GITHUB_TOKEN
+        self.api_key = (
+            api_key or 
+            os.getenv("AUTHENT8_AI_KEY") or 
+            os.getenv("FASTROUTER_API_KEY") or 
+            os.getenv("OPENAI_API_KEY") or 
+            os.getenv("GITHUB_TOKEN")
+        )
         
         # Skip placeholder keys
         if self.api_key and self.api_key.startswith("your-"):
-            self.api_key = os.getenv("FASTROUTER_API_KEY") or os.getenv("GITHUB_TOKEN")
+            self.api_key = os.getenv("AUTHENT8_AI_KEY") or os.getenv("FASTROUTER_API_KEY") or os.getenv("GITHUB_TOKEN")
         
-        # Check for custom base URL (for FastRouter, OpenRouter, etc.)
+        # Check for custom base URL
         if not base_url:
-            base_url = os.getenv("FASTROUTER_API_HOST") or os.getenv("OPENAI_BASE_URL")
+            base_url = (
+                os.getenv("AUTHENT8_AI_BASE_URL") or 
+                os.getenv("FASTROUTER_API_HOST") or 
+                os.getenv("OPENAI_BASE_URL")
+            )
         
         # Fallback: if using GITHUB_TOKEN without OPENAI_API_KEY, use GitHub Models
-        if not base_url and os.getenv("GITHUB_TOKEN") and not os.getenv("OPENAI_API_KEY"):
+        if not base_url and os.getenv("GITHUB_TOKEN") and not os.getenv("OPENAI_API_KEY") and not os.getenv("AUTHENT8_AI_KEY"):
             base_url = "https://models.inference.ai.azure.com"
         
         self.base_url = base_url
         
         # Model override from env
-        self.model = os.getenv("AI_MODEL", "gpt-4o")
+        self.model = os.getenv("AUTHENT8_AI_MODEL") or os.getenv("AI_MODEL", "gpt-4o-mini")
 
         if self.api_key:
+            # Special case for Gemini - they sometimes need version in path
+            # but usually OpenAI-compatible endpoint works fine
             self.client = OpenAI(
                 api_key=self.api_key,
                 base_url=self.base_url

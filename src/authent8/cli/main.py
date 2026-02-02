@@ -765,23 +765,111 @@ def run_interactive_loop():
                 input("\nPress Enter to return...")
         
         elif choice == "Configuration":
-            clear_screen()
-            console.print("\n [#3b82f6]⚙️  ENGINE CONFIGURATION[/#3b82f6]\n")
-            
-            config_table = Table(box=box.SIMPLE, show_header=False)
-            config_table.add_column("Setting", style="#666666")
-            config_table.add_column("Value", style="#e5e5e5")
-            
-            ai_key = "✓ Set" if os.getenv('OPENAI_API_KEY') else ("✓ GitHub" if os.getenv('GITHUB_TOKEN') else "✗ Not set")
-            config_table.add_row("AI Model", os.getenv('AI_MODEL', 'gpt-4o'))
-            config_table.add_row("API Key", ai_key)
-            config_table.add_row("Trivy", "✓ Installed" if is_installed('trivy') else "✗ Missing")
-            config_table.add_row("Semgrep", "✓ Installed" if is_installed('semgrep') else "✗ Missing")
-            config_table.add_row("Gitleaks", "✓ Installed" if is_installed('gitleaks') else "✗ Missing")
-            
-            console.print(config_table)
-            console.print("\n[#666666]Configure via .env file or environment variables[/#666666]")
-            input("\nPress Enter to return...")
+            run_configuration_menu()
+
+def run_configuration_menu():
+    from authent8.config import get_ai_config, load_config
+    load_config() # Reload fresh
+    
+    while True:
+        clear_screen()
+        console.print("\n [#3b82f6]⚙️  ENGINE CONFIGURATION[/#3b82f6]\n")
+        
+        config = get_ai_config()
+        
+        config_table = Table(box=box.SIMPLE, show_header=False)
+        config_table.add_column("Setting", style="#666666")
+        config_table.add_column("Value", style="#e5e5e5")
+        
+        ai_key = "✓ Set" if config['api_key'] else "✗ Not set"
+        config_table.add_row("Provider", config['provider'])
+        config_table.add_row("AI Model", config['model'])
+        config_table.add_row("API Key", ai_key)
+        config_table.add_row("Base URL", config['base_url'] or "Default")
+        config_table.add_row("Trivy", "✓ Installed" if is_installed('trivy') else "✗ Missing")
+        config_table.add_row("Semgrep", "✓ Installed" if is_installed('semgrep') else "✗ Missing")
+        config_table.add_row("Gitleaks", "✓ Installed" if is_installed('gitleaks') else "✗ Missing")
+        
+        console.print(config_table)
+        
+        sub_choice = questionary.select(
+            "What would you like to do?",
+            choices=[
+                "Setup AI Provider",
+                "Install/Fix Tooling",
+                "Back to Main Menu"
+            ],
+            style=custom_style
+        ).ask()
+        
+        if sub_choice == "Setup AI Provider":
+            run_setup_wizard()
+        elif sub_choice == "Install/Fix Tooling":
+            check_and_install()
+            input("\nPress Enter to continue...")
+        else:
+            break
+
+def run_setup_wizard():
+    from authent8.config import PROVIDERS, save_config
+    
+    console.print("\n[#3b82f6]Connect a provider[/#3b82f6]")
+    
+    provider_name = questionary.select(
+        "Select your AI provider:",
+        choices=list(PROVIDERS.keys()),
+        style=custom_style
+    ).ask()
+    
+    if not provider_name:
+        return
+
+    provider_data = PROVIDERS[provider_name]
+    
+    # 1. API Key
+    api_key = questionary.password(
+        f"Enter your {provider_name} API Key:",
+        style=custom_style
+    ).ask()
+    
+    if not api_key:
+        return
+
+    # 2. Model
+    models = provider_data.get("models", [])
+    default_model = models[0] if models else "gpt-4o-mini"
+    
+    hint = f" (Suggestions: {', '.join(models)})" if models else ""
+    model = questionary.text(
+        f"Enter AI Model ID{hint}:",
+        default=default_model,
+        style=custom_style
+    ).ask()
+    
+    if not model:
+        return
+
+    # 3. Base URL (for custom)
+    base_url = provider_data["base_url"]
+    if provider_name == "Custom (OpenAI Compatible)":
+        base_url = questionary.text("Enter Base URL:", default="https://api.openai.com/v1").ask()
+
+    # Save
+    save_config({
+        "AUTHENT8_AI_PROVIDER": provider_name,
+        "AUTHENT8_AI_KEY": api_key,
+        "AUTHENT8_AI_MODEL": model,
+        "AUTHENT8_AI_BASE_URL": base_url or ""
+    })
+    
+    # Also set in current session environment
+    os.environ["AUTHENT8_AI_KEY"] = api_key
+    os.environ["AUTHENT8_AI_MODEL"] = model
+    if base_url:
+        os.environ["AUTHENT8_AI_BASE_URL"] = base_url
+
+    console.print(f"\n[green]✓ Connected to {provider_name} successfully![/green]")
+    time.sleep(1.5)
 
 @cli.command()
 @click.argument('path', type=click.Path(exists=True), required=False)

@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Authent8 - Privacy-First Security Scanner</title>
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    
+
     <style>
         :root {
-            /* Updated background to match the screenshot's deep blue gradient profile */
-            --bg: #060914; 
+            --bg: #060914;
             --bg-gradient: radial-gradient(circle at 50% 40%, #102147 0%, #060914 100%);
             --card-bg: rgba(255, 255, 255, 0.03);
             --border: rgba(255, 255, 255, 0.08);
@@ -32,7 +33,6 @@
 
         body {
             background-color: var(--bg);
-            /* This mimics the deep radial light source in your screenshot */
             background-image: var(--bg-gradient);
             background-attachment: fixed;
             color: var(--primary);
@@ -48,7 +48,14 @@
             width: 100%;
             z-index: 1000;
             background: transparent;
-            border-bottom: none;
+            transition: 0.4s;
+        }
+
+        nav.scrolled {
+            background: rgba(6, 9, 20, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0.5rem 0;
         }
 
         .nav-container {
@@ -65,12 +72,14 @@
             font-weight: 800;
             letter-spacing: -1px;
             color: var(--primary);
+            z-index: 1001;
         }
 
         .nav-links {
             display: flex;
             gap: 2.5rem;
             list-style: none;
+            align-items: center;
         }
 
         .nav-links a {
@@ -81,11 +90,22 @@
             transition: 0.3s;
         }
 
-        .nav-links a:hover { color: var(--primary); }
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .mobile-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            z-index: 1001;
+        }
 
         /* --- Hero Section --- */
         .hero {
-            padding: 12rem 2rem 8rem;
+            padding: 12rem 1.5rem 6rem;
             max-width: 1200px;
             margin: 0 auto;
             display: flex;
@@ -95,15 +115,15 @@
         }
 
         .hero h1 {
-            font-size: clamp(3rem, 8vw, 5.5rem);
+            font-size: clamp(2.5rem, 10vw, 5.5rem);
             font-weight: 800;
-            line-height: 1;
+            line-height: 1.1;
             letter-spacing: -0.04em;
             margin-bottom: 1.5rem;
         }
 
         .hero p {
-            font-size: 1.25rem;
+            font-size: clamp(1rem, 4vw, 1.25rem);
             color: var(--secondary);
             max-width: 600px;
             margin-bottom: 3rem;
@@ -112,27 +132,31 @@
 
         .hero-btns {
             display: flex;
-            gap: 1.25rem;
+            gap: 1rem;
+            width: 100%;
+            justify-content: center;
         }
 
         .btn {
-            padding: 1rem 2.2rem;
+            padding: 0.9rem 2rem;
             border-radius: 99px;
             font-weight: 600;
             text-decoration: none;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
+            text-align: center;
+            font-size: 0.95rem;
         }
 
         .btn-primary {
             background: var(--primary);
             color: var(--bg);
-            box-shadow: 0 10px 30px rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
         }
 
         .btn-primary:hover {
             transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(255,255,255,0.2);
+            box-shadow: 0 15px 40px rgba(255, 255, 255, 0.2);
         }
 
         .btn-secondary {
@@ -142,8 +166,8 @@
             backdrop-filter: blur(10px);
         }
 
-        .btn-secondary:hover { 
-            background: rgba(255,255,255,0.1); 
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
             transform: translateY(-3px);
         }
 
@@ -160,120 +184,201 @@
             border: 1px solid var(--border);
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(20px);
             text-align: left;
+            width: 100%;
         }
 
         .terminal-header {
             background: rgba(255, 255, 255, 0.05);
-            padding: 14px 22px;
+            padding: 12px 18px;
             display: flex;
-            gap: 10px;
+            gap: 8px;
             border-bottom: 1px solid var(--border);
         }
 
-        .dot { width: 12px; height: 12px; border-radius: 50%; }
-        .dot.r { background: #ff5f56; }
-        .dot.y { background: #ffbd2e; }
-        .dot.g { background: #27ca40; }
-
-        .terminal-body {
-            padding: 2.5rem;
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
-            font-size: 0.95rem;
-            color: #888;
-            line-height: 1.8;
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
         }
 
-        .t-white { color: #fff; }
-        .t-green { color: #10b981; }
-        .t-blue { color: #3b82f6; }
+        .dot.r {
+            background: #ff5f56;
+        }
+
+        .dot.y {
+            background: #ffbd2e;
+        }
+
+        .dot.g {
+            background: #27ca40;
+        }
+
+        .terminal-body {
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: clamp(0.75rem, 3vw, 0.95rem);
+            color: #888;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        .t-white {
+            color: #fff;
+        }
+
+        .t-green {
+            color: #10b981;
+        }
+
+        .t-blue {
+            color: #3b82f6;
+        }
 
         /* --- Features --- */
-        .section-padding { padding: 8rem 2rem; max-width: 1200px; margin: 0 auto; }
+        .section-padding {
+            padding: 6rem 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
 
         .grid-features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
         }
 
         .f-card {
             background: #0d1321;
             border: 1px solid #1a2234;
-            padding: 2.5rem 2rem;
+            padding: 2.5rem 1.5rem;
             border-radius: 16px;
+            transition: 0.3s;
+        }
+
+        .f-card:hover {
+            border-color: #3b82f6;
+            transform: translateY(-5px);
         }
 
         .f-icon {
-            width: 48px;
-            height: 48px;
+            width: 44px;
+            height: 44px;
             background: linear-gradient(135deg, #1e3a5f 0%, #0d1f35 100%);
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
         }
 
         .f-icon i {
             color: #60a5fa;
         }
 
-        .f-card h3 { 
-            margin-bottom: 0.75rem; 
-            font-size: 1.25rem; 
+        .f-card h3 {
+            margin-bottom: 0.75rem;
+            font-size: 1.15rem;
             font-weight: 600;
             color: #fff;
         }
-        
-        .f-card p { 
-            color: #8896ab; 
+
+        .f-card p {
+            color: #8896ab;
             font-size: 0.95rem;
             line-height: 1.6;
         }
 
         /* --- Install Box --- */
         .install-box {
-            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
             border: 1px solid var(--border);
-            border-radius: 32px;
-            padding: 5rem 2rem;
+            border-radius: 24px;
+            padding: 4rem 1.5rem;
             text-align: center;
             backdrop-filter: blur(10px);
+            width: 100%;
         }
 
         .code-shell {
             background: #000;
-            padding: 1.2rem 2.5rem;
-            border-radius: 14px;
-            margin-top: 2.5rem;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin-top: 2rem;
             display: inline-flex;
             align-items: center;
-            gap: 1.5rem;
+            gap: 1rem;
             border: 1px solid var(--border);
             font-family: 'JetBrains Mono', monospace;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            max-width: 100%;
+            overflow-x: auto;
+            text-align: left;
+        }
+
+        .code-shell span {
+            white-space: nowrap;
         }
 
         footer {
-            padding: 5rem 2rem;
+            padding: 4rem 1.5rem;
             border-top: 1px solid var(--border);
             text-align: center;
             color: var(--secondary);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         /* --- Responsive --- */
         @media (max-width: 768px) {
-            .hero h1 { font-size: 3.2rem; }
-            .nav-links { display: none; }
-            .install-box { padding: 3rem 1.5rem; }
-            .hero { padding-top: 10rem; }
+            .nav-links {
+                position: fixed;
+                top: 0;
+                right: -100%;
+                width: 70%;
+                height: 100vh;
+                background: #060914;
+                flex-direction: column;
+                justify-content: center;
+                transition: 0.4s;
+                border-left: 1px solid var(--border);
+            }
+
+            .nav-links.active {
+                right: 0;
+            }
+
+            .mobile-toggle {
+                display: block;
+            }
+
+            .hero-btns {
+                flex-direction: column;
+                padding: 0 2rem;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .install-box h2 {
+                font-size: 2rem !important;
+            }
+
+            .code-shell {
+                width: 100%;
+                font-size: 0.8rem;
+                justify-content: space-between;
+            }
+
+            .preview-container {
+                margin-top: 3rem;
+            }
         }
     </style>
 </head>
+
 <body>
 
     <nav>
@@ -283,19 +388,23 @@
                 <li><a href="#features">Solutions</a></li>
                 <li><a href="#install">Developers</a></li>
                 <li><a href="#">Pricing</a></li>
-                <li><a href="#" class="btn btn-secondary" style="padding: 0.6rem 1.5rem; font-size: 0.85rem;">Sign In</a></li>
+                <li><a href="#" class="btn btn-secondary" style="padding: 0.6rem 1.5rem; font-size: 0.85rem;">Sign
+                        In</a></li>
             </ul>
+            <button class="mobile-toggle" aria-label="Toggle Menu">
+                <i data-lucide="menu"></i>
+            </button>
         </div>
     </nav>
 
     <section class="hero">
-        <h1 data-aos="fade-up">Secure logic.<br>Instant auth.</h1>
+        <h1 data-aos="fade-up">Secure logic.<br>Instant check.</h1>
         <p data-aos="fade-up" data-aos-delay="100">
-            The identity platform for the next generation of internet applications. Seamless. Invisible. Unbreakable.
+            Privacy-first security scanner for next-gen developers. Find vulnerabilities. Keep your code local.
         </p>
         <div class="hero-btns" data-aos="fade-up" data-aos-delay="200">
             <a href="#install" class="btn btn-primary">Start Building</a>
-            <a href="#" class="btn btn-secondary">Contact Sales</a>
+            <a href="#" class="btn btn-secondary">Documentation</a>
         </div>
 
         <div class="preview-container" data-aos="zoom-out-up" data-aos-delay="400">
@@ -307,10 +416,12 @@
                 </div>
                 <div class="terminal-body">
                     <div class="line">$ <span class="t-white">authent8 scan .</span></div>
-                    <div class="line" style="margin-top: 12px;">Analyzing local logic... <span class="t-green">Done</span></div>
+                    <div class="line" style="margin-top: 12px;">Analyzing local logic... <span
+                            class="t-green">Done</span></div>
                     <div class="line">Pattern match encryption... <span class="t-green">Verified</span></div>
                     <div class="line">Running AI validation... <span class="t-blue">Complete</span></div>
-                    <div class="line" style="margin-top: 12px; color: #fff; font-weight: 600;">✓ 0 security issues found. Build with confidence.</div>
+                    <div class="line" style="margin-top: 12px; color: #fff; font-weight: 600;">✓ 0 security issues
+                        found. Build with confidence.</div>
                 </div>
             </div>
         </div>
@@ -323,64 +434,77 @@
                     <i data-lucide="lock" size="24"></i>
                 </div>
                 <h3>100% Local</h3>
-                <p>Your logic and secrets never leave your local environment. We verify security without touching your data.</p>
+                <p>Your logic and secrets never leave your local environment. We verify security without touching your
+                    data.</p>
             </div>
             <div class="f-card">
                 <div class="f-icon">
                     <i data-lucide="zap" size="24"></i>
                 </div>
                 <h3>Instant Scanning</h3>
-                <p>Proprietary scanning engines built for speed. Get full security reports in the time it takes to save a file.</p>
+                <p>Proprietary scanning engines built for speed. Get full security reports in the time it takes to save
+                    a file.</p>
             </div>
             <div class="f-card">
                 <div class="f-icon">
                     <i data-lucide="brain" size="24"></i>
                 </div>
                 <h3>AI-Driven</h3>
-                <p>Leverage local AI to filter noise and focus only on the vulnerabilities that actually matter to your stack.</p>
+                <p>Leverage local AI to filter noise and focus only on the vulnerabilities that actually matter to your
+                    stack.</p>
             </div>
         </div>
     </section>
 
     <section id="install" class="section-padding">
         <div class="install-box" data-aos="fade-up">
-            <h2 style="font-size: 2.8rem; margin-bottom: 1rem; font-weight: 800;">Ready to secure your stack?</h2>
+            <h2 style="font-size: 2.8rem; margin-bottom: 1.5rem; font-weight: 800; line-height: 1.2;">Ready to secure
+                your stack?</h2>
             <p style="color: var(--secondary); font-size: 1.1rem;">Get started with our lightweight CLI tool.</p>
-            
+
             <!-- OS Tabs -->
-            <div style="display: flex; justify-content: center; gap: 0.5rem; margin: 2rem 0 1.5rem;">
-                <button onclick="showOS('linux')" id="tab-linux" class="os-tab active" style="padding: 0.7rem 1.5rem; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,0.1); color: #fff; cursor: pointer; font-weight: 600; transition: 0.2s;">
-                    <i data-lucide="terminal" size="16" style="vertical-align: middle; margin-right: 6px;"></i>Linux
+            <div style="display: flex; justify-content: center; gap: 0.25rem; margin: 2rem 0 1.5rem; flex-wrap: wrap;">
+                <button onclick="showOS('linux')" id="tab-linux" class="os-tab active"
+                    style="padding: 0.6rem 1.2rem; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,0.1); color: #fff; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                    <i data-lucide="terminal" size="14" style="vertical-align: middle; margin-right: 6px;"></i>Linux
                 </button>
-                <button onclick="showOS('mac')" id="tab-mac" class="os-tab" style="padding: 0.7rem 1.5rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: #888; cursor: pointer; font-weight: 600; transition: 0.2s;">
-                    <i data-lucide="apple" size="16" style="vertical-align: middle; margin-right: 6px;"></i>macOS
+                <button onclick="showOS('mac')" id="tab-mac" class="os-tab"
+                    style="padding: 0.6rem 1.2rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: #888; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                    <i data-lucide="apple" size="14" style="vertical-align: middle; margin-right: 6px;"></i>macOS
                 </button>
-                <button onclick="showOS('win')" id="tab-win" class="os-tab" style="padding: 0.7rem 1.5rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: #888; cursor: pointer; font-weight: 600; transition: 0.2s;">
-                    <i data-lucide="square" size="16" style="vertical-align: middle; margin-right: 6px;"></i>Windows
+                <button onclick="showOS('win')" id="tab-win" class="os-tab"
+                    style="padding: 0.6rem 1.2rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: #888; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                    <i data-lucide="square" size="14" style="vertical-align: middle; margin-right: 6px;"></i>Windows
                 </button>
             </div>
 
             <!-- Install Commands -->
             <div id="install-linux" class="code-shell">
                 <span style="color: #666;">$</span>
-                <span style="color: #fff;">curl -fsSL https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash</span>
-                <i data-lucide="copy" size="18" style="cursor:pointer; color: var(--secondary);" onclick="copyCmd('linux')"></i>
+                <span style="color: #fff; margin-right: 1rem;">curl -fsSL
+                    https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash</span>
+                <i data-lucide="copy" size="18" style="cursor:pointer; color: var(--secondary);"
+                    onclick="copyCmd('linux')"></i>
             </div>
             <div id="install-mac" class="code-shell" style="display: none;">
                 <span style="color: #666;">$</span>
-                <span style="color: #fff;">curl -fsSL https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash</span>
-                <i data-lucide="copy" size="18" style="cursor:pointer; color: var(--secondary);" onclick="copyCmd('mac')"></i>
+                <span style="color: #fff; margin-right: 1rem;">curl -fsSL
+                    https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash</span>
+                <i data-lucide="copy" size="18" style="cursor:pointer; color: var(--secondary);"
+                    onclick="copyCmd('mac')"></i>
             </div>
             <div id="install-win" class="code-shell" style="display: none;">
                 <span style="color: #666;">PS&gt;</span>
-                <span style="color: #fff;">irm https://raw.githubusercontent.com/AshishOP/authent8/main/install.ps1 | iex</span>
-                <i data-lucide="copy" size="18" style="cursor:pointer; color: var(--secondary);" onclick="copyCmd('win')"></i>
+                <span style="color: #fff; margin-right: 1rem;">irm
+                    https://raw.githubusercontent.com/AshishOP/authent8/main/install.ps1 | iex</span>
+                <i data-lucide="copy" size="18" style="cursor:pointer; color: var(--secondary);"
+                    onclick="copyCmd('win')"></i>
             </div>
         </div>
     </section>
 
     <footer>
-        <p>© 2026 Authent8. Built by developers, for the next generation of security.</p>
+        <p>© 2026 Authent8. Built for the next generation of security.</p>
     </footer>
 
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
@@ -393,17 +517,35 @@
 
         lucide.createIcons();
 
-        // Subtle 3D tilt effect on terminal + nav scroll handler
+        // Mobile Menu Toggle
+        const toggle = document.querySelector('.mobile-toggle');
+        const navLinks = document.querySelector('.nav-links');
+        toggle.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+            const icon = navLinks.classList.contains('active') ? 'x' : 'menu';
+            toggle.innerHTML = `<i data-lucide="${icon}"></i>`;
+            lucide.createIcons();
+        });
+
+        // Close menu on link click
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+                toggle.innerHTML = `<i data-lucide="menu"></i>`;
+                lucide.createIcons();
+            });
+        });
+
+        // Scroll Logic
         window.addEventListener('scroll', () => {
             const scrolled = window.pageYOffset;
             const terminal = document.querySelector('.terminal');
             const nav = document.querySelector('nav');
-            
-            if(terminal) {
+
+            if (terminal && window.innerWidth > 768) {
                 terminal.style.transform = `perspective(1000px) translateY(${scrolled * 0.03}px) rotateX(${scrolled * 0.005}deg)`;
             }
-            
-            // Add scrolled class to nav after 50px
+
             if (scrolled > 50) {
                 nav.classList.add('scrolled');
             } else {
@@ -424,7 +566,6 @@
             lucide.createIcons();
         }
 
-        // Copy command to clipboard
         function copyCmd(os) {
             const cmds = {
                 linux: 'curl -fsSL https://raw.githubusercontent.com/AshishOP/authent8/main/install.sh | bash',
@@ -432,8 +573,17 @@
                 win: 'irm https://raw.githubusercontent.com/AshishOP/authent8/main/install.ps1 | iex'
             };
             navigator.clipboard.writeText(cmds[os]);
-            alert('Copied!');
+
+            // Visual feedback
+            const copyIcon = event.target;
+            copyIcon.setAttribute('data-lucide', 'check');
+            lucide.createIcons();
+            setTimeout(() => {
+                copyIcon.setAttribute('data-lucide', 'copy');
+                lucide.createIcons();
+            }, 2000);
         }
     </script>
 </body>
+
 </html>
