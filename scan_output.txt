@@ -1,0 +1,102 @@
+[H[2J[3J
+ authent8 │ Scanning: .
+
+
+[DEBUG AI RESPONSE]
+```json
+[
+  {
+    "id": 0,
+    "is_false_positive": false,
+    "confidence": 95,
+    "fix_suggestion": "Replace hardcoded AWS access key with environment variable.",
+    "reasoning": "Hardcoded AWS key is a critical security risk."
+  },
+  {
+    "id": 1,
+    "is_false_positive": false,
+    "confidence": 90,
+    "fix_suggestion": "Avoid shell=True in subprocess calls; use a list of arguments.",
+    "reasoning": "Shell=True enables command injection vulnerabilities."
+  },
+  {
+    "id": 2,
+    "is_false_positive": false,
+    "confidence": 95,
+    "fix_suggestion": "Replace MD5 with a more secure hashing algorithm like SHA-256.",
+    "reasoning": "MD5 is cryptographically broken and insecure."
+  },
+  {
+    "id": 3,
+    "is_false_positive": false,
+    "confidence": 95,
+    "fix_suggestion": "Use a strong password hashing algorithm like bcrypt or Argon2.",
+    "reasoning": "MD5 is unsuitable for password hashing."
+  },
+  {
+    "id": 4,
+    "is_false_positive": false,
+    "confidence": 95,
+    "fix_suggestion": "Replace MD5 with a more secure hashing algorithm like SHA-256.",
+    "reasoning": "MD5 is cryptographically broken and insecure."
+  }
+]
+```
+[END DEBUG]
+
+
+[DEBUG AI RESPONSE]
+```json
+[
+  {
+    "id": 0,
+    "is_false_positive": false,
+    "confidence": 95,
+    "fix_suggestion": "Replace hardcoded secrets with environment variables or a secrets management solution.",
+    "reasoning": "Hardcoded secrets are a major security risk. Needs immediate attention."
+  },
+  {
+    "id": 1,
+    "is_false_positive": false,
+    "confidence": 95,
+    "fix_suggestion": "Replace hardcoded secrets with environment variables or a secrets management solution.",
+    "reasoning": "Duplicate finding, same issue as finding 0. Needs immediate attention."
+  }
+]
+```
+[END DEBUG]
+
+  Dependency Scan  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% ✓ 0 found 
+  Pattern Analysis ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% ✓ 5 found 
+  Secret Hunting   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% ✓ 2 found 
+  AI Verification  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% ✓ Complete
+
+╭───────────────────────────────────────────────────────── Scan Results (13.1s) ──────────────────────────────────────────────────────────╮
+│                                                    2 CRITICAL    2 HIGH    3 MEDIUM                                                     │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+                                                                                                                        
+  Severity       Location                   Finding                                                                     
+ ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 
+  CRITICAL       security_check.py:10       Hardcoded secret found: generic-api-key                                     
+  CRITICAL       security_check.py:11       Hardcoded secret found: generic-api-key                                     
+  HIGH           security_check.py:10       AWS Access Key ID Value detected. This is a sensitive credential            
+  HIGH           security_check.py:17       Found 'subprocess' function 'call' with 'shell=True'. This is dan           
+  MEDIUM         security_check.py:28       Detected MD5 hash algorithm which is considered insecure. MD5 is            
+  MEDIUM         security_check.py:28       It looks like MD5 is used as a password hash. MD5 is not consider           
+  MEDIUM         security_check.py:46       Detected MD5 hash algorithm which is considered insecure. MD5 is            
+                                                                                                                        
+
+ 💡 FIX SUGGESTIONS
+
+ 📄 security_check.py
+    L10: Replace hardcoded secrets with environment variables or a secrets m...
+    L11: Replace hardcoded secrets with environment variables or a secrets m...
+    L10: Replace hardcoded AWS access key with environment variable.
+    L17: Avoid shell=True in subprocess calls; use a list of arguments.
+    L28: Replace MD5 with a more secure hashing algorithm like SHA-256.
+    +2 more in this file
+
+
+ authent8  19:21:58                                                                                                        mode  COMPLETED 
+

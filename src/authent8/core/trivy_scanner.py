@@ -4,35 +4,8 @@ Scans for dependency vulnerabilities
 """
 import subprocess
 import json
-import importlib.resources
-import platform
-import os
-import shutil
 from pathlib import Path
 from typing import List, Dict
-
-
-def get_tool_path(tool_name: str) -> str:
-    """Get the full path to a tool, checking local bin on Windows"""
-    # Check system PATH first
-    path = shutil.which(tool_name)
-    if path:
-        return path
-    
-    # Check local authent8 bin (Windows)
-    if platform.system().lower() == "windows":
-        local_bin = os.path.join(os.environ.get("LOCALAPPDATA", ""), "authent8", "bin")
-        local_path = os.path.join(local_bin, f"{tool_name}.exe")
-        if os.path.exists(local_path):
-            return local_path
-    else:
-        local_bin = os.path.join(os.path.expanduser("~"), ".local", "bin")
-        local_path = os.path.join(local_bin, tool_name)
-        if os.path.exists(local_path):
-            return local_path
-    
-    # Fallback to just the tool name
-    return tool_name
 
 
 class TrivyScanner:
@@ -40,36 +13,19 @@ class TrivyScanner:
     
     def __init__(self, project_path: Path):
         self.project_path = project_path
-        # Use importlib.resources for package-relative config
-        try:
-            import authent8.config
-            config_dir = Path(importlib.resources.files(authent8.config))
-            self.config_path = config_dir / ".trivy.yaml"
-        except:
-            self.config_path = Path(__file__).parent.parent / "config" / ".trivy.yaml"
+        self.config_path = Path(__file__).parent.parent / "config" / ".trivy.yaml"
     
     def scan(self) -> List[Dict]:
         """Run Trivy scan and return normalized findings"""
         try:
-            # Check if trivy is installed
-            trivy_path = get_tool_path("trivy")
-            
-            # Build command - optimized for speed
             cmd = [
-                trivy_path, "fs",
-                "--severity", "CRITICAL,HIGH",  # Focus on important issues
+                "trivy", "fs",
+                "--config", str(self.config_path),
+                "--severity", "CRITICAL,HIGH,MEDIUM",
                 "--format", "json",
-                "--scanners", "vuln,misconfig",  # Skip secrets (gitleaks handles it)
-                "--skip-db-update",  # Use cached DB - huge speed boost
-                "--offline-scan",  # Don't fetch from network
-                "--timeout", "60s",  # 1 minute max
+                "--quiet",
                 str(self.project_path)
             ]
-            
-            # Add config if exists
-            if self.config_path.exists():
-                cmd.insert(2, "--config")
-                cmd.insert(3, str(self.config_path))
             
             result = subprocess.run(
                 cmd,
@@ -78,17 +34,11 @@ class TrivyScanner:
                 timeout=600  # 10 minutes
             )
             
-            # Trivy returns 0 even with findings, parse any output
-            if result.stdout:
-                try:
-                    data = json.loads(result.stdout)
-                    return self._parse_results(data)
-                except json.JSONDecodeError:
-                    pass
+            if result.returncode == 0 and result.stdout:
+                data = json.loads(result.stdout)
+                return self._parse_results(data)
             
-            # Don't show stderr - Trivy sends INFO logs there which is normal
-            # Only show errors if there's a non-zero return code AND no valid findings
-            
+            # No findings or error
             return []
             
         except subprocess.TimeoutExpired:

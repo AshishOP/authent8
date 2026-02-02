@@ -44,6 +44,17 @@ Imagine you're building an app and you want to check if your code has security i
 | 📁 **Path Traversal** | `open(user_provided_path)` | Attackers can read any file |
 | 🔓 **Insecure Deserialization** | `pickle.loads(user_data)` | Can lead to remote code execution |
 
+### 🗑️ Uninstallation
+
+To remove Authent8 completely:
+```bash
+authent8 --uninstall
+```
+Or manually:
+```bash
+pipx uninstall authent8
+```
+
 ## 🚀 Quick Start (2 minutes)
 
 ### Step 1: Install
@@ -77,7 +88,7 @@ That's it! No signup, no account, no cloud. Just security scanning.
 ## 📊 Example Output
 
 ```
-󰒃 authent8 v1.0.0
+󰒃 authent8 v1.5.0
 
 target: my-project  files: 42  ai: off
 

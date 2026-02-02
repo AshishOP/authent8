@@ -1,249 +1,15 @@
 # Gitleaks Configuration for Authent8
-# Enhanced secret detection with comprehensive patterns
+# Detect hardcoded secrets
 
 title = "Authent8 Gitleaks Configuration"
 
 [extend]
 useDefault = true
 
-# Custom rules for additional secret patterns
-[[rules]]
-id = "aws-access-key"
-description = "AWS Access Key ID"
-regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
-tags = ["key", "AWS", "cloud"]
-
-[[rules]]
-id = "aws-secret-key"
-description = "AWS Secret Access Key"
-regex = '''(?i)aws(.{0,20})?(?-i)['\"][0-9a-zA-Z\/+]{40}['\"]'''
-tags = ["key", "AWS", "cloud"]
-
-[[rules]]
-id = "github-pat"
-description = "GitHub Personal Access Token"
-regex = '''ghp_[0-9a-zA-Z]{36}'''
-tags = ["key", "GitHub"]
-
-[[rules]]
-id = "github-oauth"
-description = "GitHub OAuth Token"
-regex = '''gho_[0-9a-zA-Z]{36}'''
-tags = ["key", "GitHub"]
-
-[[rules]]
-id = "github-app"
-description = "GitHub App Token"
-regex = '''(ghu|ghs)_[0-9a-zA-Z]{36}'''
-tags = ["key", "GitHub"]
-
-[[rules]]
-id = "github-fine-grained"
-description = "GitHub Fine-grained PAT"
-regex = '''github_pat_[0-9a-zA-Z_]{22,}'''
-tags = ["key", "GitHub"]
-
-[[rules]]
-id = "gitlab-pat"
-description = "GitLab Personal Access Token"
-regex = '''glpat-[0-9a-zA-Z\-]{20}'''
-tags = ["key", "GitLab"]
-
-[[rules]]
-id = "slack-bot-token"
-description = "Slack Bot Token"
-regex = '''xoxb-[0-9]{11}-[0-9]{11}-[0-9a-zA-Z]{24}'''
-tags = ["key", "Slack"]
-
-[[rules]]
-id = "slack-webhook"
-description = "Slack Webhook URL"
-regex = '''https://hooks\.slack\.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8,12}/[a-zA-Z0-9_]{24}'''
-tags = ["webhook", "Slack"]
-
-[[rules]]
-id = "stripe-live-key"
-description = "Stripe Live API Key"
-regex = '''sk_live_[0-9a-zA-Z]{24,}'''
-tags = ["key", "Stripe", "payment"]
-
-[[rules]]
-id = "stripe-test-key"
-description = "Stripe Test API Key"
-regex = '''sk_test_[0-9a-zA-Z]{24,}'''
-tags = ["key", "Stripe", "payment"]
-
-[[rules]]
-id = "openai-key"
-description = "OpenAI API Key"
-regex = '''sk-[a-zA-Z0-9]{20}T3BlbkFJ[a-zA-Z0-9]{20}'''
-tags = ["key", "OpenAI", "AI"]
-
-[[rules]]
-id = "openai-key-v2"
-description = "OpenAI API Key (new format)"
-regex = '''sk-proj-[a-zA-Z0-9_\-]{48,}'''
-tags = ["key", "OpenAI", "AI"]
-
-[[rules]]
-id = "anthropic-key"
-description = "Anthropic API Key"
-regex = '''sk-ant-[a-zA-Z0-9\-]{95,}'''
-tags = ["key", "Anthropic", "AI"]
-
-[[rules]]
-id = "google-api-key"
-description = "Google API Key"
-regex = '''AIza[0-9A-Za-z\\-_]{35}'''
-tags = ["key", "Google", "cloud"]
-
-[[rules]]
-id = "google-oauth"
-description = "Google OAuth Token"
-regex = '''ya29\\.[0-9A-Za-z\\-_]+'''
-tags = ["key", "Google"]
-
-[[rules]]
-id = "firebase-key"
-description = "Firebase API Key"
-regex = '''(?i)firebase.*['\"][A-Za-z0-9_-]{39}['\"]'''
-tags = ["key", "Firebase", "Google"]
-
-[[rules]]
-id = "azure-connection-string"
-description = "Azure Storage Connection String"
-regex = '''DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{88}'''
-tags = ["key", "Azure", "cloud"]
-
-[[rules]]
-id = "jwt-token"
-description = "JWT Token"
-regex = '''eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.?[A-Za-z0-9_-]*'''
-tags = ["token", "JWT"]
-
-[[rules]]
-id = "private-key-rsa"
-description = "RSA Private Key"
-regex = '''-----BEGIN RSA PRIVATE KEY-----'''
-tags = ["key", "private", "RSA"]
-
-[[rules]]
-id = "private-key-openssh"
-description = "OpenSSH Private Key"
-regex = '''-----BEGIN OPENSSH PRIVATE KEY-----'''
-tags = ["key", "private", "SSH"]
-
-[[rules]]
-id = "private-key-ec"
-description = "EC Private Key"
-regex = '''-----BEGIN EC PRIVATE KEY-----'''
-tags = ["key", "private", "EC"]
-
-[[rules]]
-id = "private-key-pgp"
-description = "PGP Private Key"
-regex = '''-----BEGIN PGP PRIVATE KEY BLOCK-----'''
-tags = ["key", "private", "PGP"]
-
-[[rules]]
-id = "database-url-postgres"
-description = "PostgreSQL Connection String"
-regex = '''postgres(ql)?://[^/\s:@]+:[^/\s:@]+@[^/\s]+/[^\s]+'''
-tags = ["database", "connection-string", "postgres"]
-
-[[rules]]
-id = "database-url-mysql"
-description = "MySQL Connection String"
-regex = '''mysql://[^/\s:@]+:[^/\s:@]+@[^/\s]+/[^\s]+'''
-tags = ["database", "connection-string", "mysql"]
-
-[[rules]]
-id = "database-url-mongodb"
-description = "MongoDB Connection String"
-regex = '''mongodb(\+srv)?://[^/\s:@]+:[^/\s:@]+@[^/\s]+'''
-tags = ["database", "connection-string", "mongodb"]
-
-[[rules]]
-id = "redis-url"
-description = "Redis Connection String"
-regex = '''redis://[^/\s:@]+:[^/\s:@]+@[^/\s]+'''
-tags = ["database", "connection-string", "redis"]
-
-[[rules]]
-id = "twilio-api-key"
-description = "Twilio API Key"
-regex = '''SK[0-9a-fA-F]{32}'''
-tags = ["key", "Twilio"]
-
-[[rules]]
-id = "twilio-auth-token"
-description = "Twilio Auth Token"
-regex = '''(?i)twilio.*token.*['\"][a-f0-9]{32}['\"]'''
-tags = ["key", "Twilio"]
-
-[[rules]]
-id = "sendgrid-key"
-description = "SendGrid API Key"
-regex = '''SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}'''
-tags = ["key", "SendGrid", "email"]
-
-[[rules]]
-id = "mailgun-key"
-description = "Mailgun API Key"
-regex = '''key-[a-zA-Z0-9]{32}'''
-tags = ["key", "Mailgun", "email"]
-
-[[rules]]
-id = "npm-token"
-description = "NPM Access Token"
-regex = '''npm_[A-Za-z0-9]{36}'''
-tags = ["key", "NPM"]
-
-[[rules]]
-id = "pypi-token"
-description = "PyPI API Token"
-regex = '''pypi-[A-Za-z0-9_-]{100,}'''
-tags = ["key", "PyPI"]
-
-[[rules]]
-id = "docker-auth"
-description = "Docker Hub Auth"
-regex = '''(?i)docker.*token.*['\"][a-zA-Z0-9_-]{36,}['\"]'''
-tags = ["key", "Docker"]
-
-[[rules]]
-id = "heroku-api-key"
-description = "Heroku API Key"
-regex = '''[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'''
-tags = ["key", "Heroku"]
-[rules.allowlist]
-regexes = [
-    '''test|example|fake|mock|dummy''',
-]
-
-[[rules]]
-id = "vercel-token"
-description = "Vercel API Token"
-regex = '''(?i)vercel.*token.*['\"][a-zA-Z0-9]{24}['\"]'''
-tags = ["key", "Vercel"]
-
-[[rules]]
-id = "supabase-key"
-description = "Supabase API Key"
-regex = '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]{50,}\.[A-Za-z0-9_-]{30,}'''
-tags = ["key", "Supabase"]
-
-[[rules]]
-id = "env-file-secret"
-description = "Secret in .env file pattern"
-regex = '''(?i)(password|secret|api_key|apikey|token|auth|private_key)\s*=\s*['\"]?[^\s'"]{8,}['\"]?'''
-tags = ["secret", "env"]
-
 # Allowlist to reduce false positives
 [allowlist]
-description = "Global allowlist rules"
+description = "Reduce false positives"
 
-# Paths to ignore
 paths = [
     '''node_modules/''',
     '''vendor/''',
@@ -252,56 +18,22 @@ paths = [
     '''\.venv/''',
     '''dist/''',
     '''build/''',
-    '''coverage/''',
-    '''\.pytest_cache/''',
-    '''__pycache__/''',
-    '''\.next/''',
-    '''\.nuxt/''',
-    # Environment files (should be in .gitignore, not committed)
-    '''\.env$''',
-    '''\.env\.local$''',
-    '''\.env\.development$''',
-    '''\.env\.production$''',
-    # Test files
-    '''.*test\..*''',
-    '''.*spec\..*''',
-    '''.*mock\..*''',
-    '''.*example\..*''',
-    '''.*sample\..*''',
-    '''.*fixture.*''',
-    '''.*testdata.*''',
-    # Demo/vulnerable app (intentional vulnerabilities for testing)
-    '''demo/''',
-    '''vulnerable-app/''',
-    # Documentation
-    '''.*\.md$''',
-    '''docs/''',
-    '''documentation/''',
-    # Config examples
-    '''.*\.example$''',
-    '''.*\.sample$''',
-    '''.*\.template$''',
+    '''.*test.*''',
+    '''.*example.*''',
+    '''.*mock.*''',
+    '''.*sample.*''',
 ]
 
-# Regexes to ignore (common false positives)
 regexes = [
-    '''example\.com''',
-    '''localhost''',
-    '''127\.0\.0\.1''',
-    '''0\.0\.0\.0''',
-    '''your-api-key''',
-    '''YOUR_API_KEY''',
-    '''xxx+''',
+    '''example''',
+    '''test''',
+    '''sample''',
+    '''fake''',
+    '''mock''',
+    '''dummy''',
     '''placeholder''',
-    '''insert-here''',
-    '''replace-with''',
-    '''your-secret''',
-    '''YOUR_SECRET''',
-    '''<[A-Z_]+>''',
-    '''\$\{.*\}''',
 ]
 
-# Stop words (reduce false positives)
 stopwords = [
     "example",
     "test",
@@ -310,11 +42,4 @@ stopwords = [
     "mock",
     "dummy",
     "placeholder",
-    "your-api-key-here",
-    "replace-with-your-key",
-    "insert-key-here",
-    "todo",
-    "fixme",
-    "xxx",
-    "template",
 ]

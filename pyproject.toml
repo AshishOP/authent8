@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "authent8"
-version = "1.0.0"
+version = "1.5.0"
 description = "Privacy-First Security Scanner - AI-powered vulnerability detection that keeps your code local"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Authent8 Team", email = "team@authent8.dev"}
+    {name = "Authent8 Team", email = "ashishshuklacr@gmail.com"}
 ]
 maintainers = [
-    {name = "Authent8 Team", email = "team@authent8.dev"}
+    {name = "Authent8 Team", email = "ashishshuklacr@gmail.com"}
 ]
 keywords = [
     "security",
@@ -61,10 +61,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/authent8/authent8"
-Documentation = "https://github.com/authent8/authent8#readme"
-Repository = "https://github.com/authent8/authent8"
-Issues = "https://github.com/authent8/authent8/issues"
+Homepage = "https://github.com/AshishOP/authent8"
+Documentation = "https://github.com/AshishOP/authent8#readme"
+Repository = "https://github.com/AshishOP/authent8"
+Issues = "https://github.com/AshishOP/authent8/issues"
 
 [project.scripts]
 authent8 = "authent8.cli.main:cli"

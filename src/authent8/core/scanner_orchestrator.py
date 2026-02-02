@@ -9,15 +9,20 @@ from typing import Dict, List
 import concurrent.futures
 import time
 
-from authent8.core.trivy_scanner import TrivyScanner
-from authent8.core.semgrep_scanner import SemgrepScanner
-from authent8.core.gitleaks_scanner import GitleaksScanner
+from .trivy_scanner import TrivyScanner
+from .semgrep_scanner import SemgrepScanner
+from .gitleaks_scanner import GitleaksScanner
 
 
 class ScanOrchestrator:
     """Orchestrates Trivy, Semgrep, and Gitleaks scans"""
     
     def __init__(self, project_path: str):
+        from authent8.install_tools import is_installed
+        # Patch PATH sessions for local binaries
+        for tool in ["trivy", "semgrep", "gitleaks"]:
+            is_installed(tool)
+            
         self.project_path = Path(project_path).resolve()
         self.results = {
             "trivy": [],
@@ -88,3 +93,32 @@ class ScanOrchestrator:
             },
             "scan_duration_seconds": round(self.scan_duration, 2)
         }
+
+
+if __name__ == "__main__":
+    # Test the orchestrator
+    import sys
+    
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
+    else:
+        path = "../demo/vulnerable-app"
+    
+    print(f"🔍 Scanning: {path}\n")
+    
+    orchestrator = ScanOrchestrator(path)
+    results = orchestrator.scan_all_parallel()
+    
+    summary = orchestrator.get_summary()
+    
+    print(f"✅ Scan complete!")
+    print(f"   Total findings: {summary['total_findings']}")
+    print(f"   - Trivy: {summary['by_tool']['trivy']}")
+    print(f"   - Semgrep: {summary['by_tool']['semgrep']}")
+    print(f"   - Gitleaks: {summary['by_tool']['gitleaks']}")
+    print(f"   Duration: {summary['scan_duration_seconds']}s")
+    print(f"\n   Severity breakdown:")
+    print(f"   🔴 Critical: {summary['by_severity']['critical']}")
+    print(f"   🟠 High: {summary['by_severity']['high']}")
+    print(f"   🟡 Medium: {summary['by_severity']['medium']}")
+    print(f"   🟢 Low: {summary['by_severity']['low']}")

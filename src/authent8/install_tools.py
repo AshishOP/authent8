@@ -12,16 +12,8 @@ import tempfile
 import urllib.request
 
 def run_cmd(cmd, check=True):
-    """Run a command and return success status
-    
-    Note: Always uses shell=False for security. 
-    Commands must be passed as a list: ['command', 'arg1', 'arg2']
-    
-    Security: This function is only used internally with hardcoded commands,
-    never with user input.
-    """
+    """Run a command and return success status"""
     try:
-        # nosemgrep: subprocess-shell-true
         subprocess.run(cmd, check=check, shell=False, capture_output=True)
         return True
     except subprocess.SubprocessError:
@@ -36,11 +28,9 @@ def get_local_bin():
 
 def is_installed(tool):
     """Check if a tool is installed"""
-    # Check system PATH
     if shutil.which(tool) is not None:
         return True
     
-    # Check local authent8 bin
     local_bin = get_local_bin()
     if platform.system().lower() == "windows":
         local_path = os.path.join(local_bin, f"{tool}.exe")
@@ -48,7 +38,6 @@ def is_installed(tool):
         local_path = os.path.join(local_bin, tool)
     
     if os.path.exists(local_path):
-        # Add to PATH for this session
         if local_bin not in os.environ.get("PATH", ""):
             os.environ["PATH"] = local_bin + os.pathsep + os.environ.get("PATH", "")
         return True
@@ -78,82 +67,56 @@ def install_trivy():
                 return True
     
     elif system == "linux":
-        # Try apt first
-        if is_installed("apt-get"):
-            try:
-                cmds = [
-                    "sudo apt-get update -qq",
-                    "sudo apt-get install -y wget apt-transport-https gnupg lsb-release -qq",
-                    "wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -",
-                    'echo "deb https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee /etc/apt/sources.list.d/trivy.list',
-                    "sudo apt-get update -qq",
-                    "sudo apt-get install -y trivy -qq"
-                ]
-                for cmd in cmds:
-                    subprocess.run(cmd, shell=True, check=True, capture_output=True)
-                print("✅ Trivy installed via apt!")
-                return True
-            except:
-                pass
-        
         # Try downloading binary
         try:
-            arch = platform.machine()
-            if arch == "x86_64":
+            arch = platform.machine().lower()
+            if "x86_64" in arch or "amd64" in arch:
                 arch = "64bit"
-            elif arch == "aarch64":
+            elif "arm64" in arch or "aarch64" in arch:
                 arch = "ARM64"
             
-            # Security: URL is hardcoded, not user-controlled
-            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected
             url = f"https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.0_Linux-{arch}.tar.gz"
+            local_bin = get_local_bin()
+            os.makedirs(local_bin, exist_ok=True)
+            
             with tempfile.TemporaryDirectory() as tmpdir:
                 tarfile = os.path.join(tmpdir, "trivy.tar.gz")
-                urllib.request.urlretrieve(url, tarfile)  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected
+                urllib.request.urlretrieve(url, tarfile)
                 subprocess.run(["tar", "-xzf", tarfile, "-C", tmpdir], check=True)
-                subprocess.run(["sudo", "mv", os.path.join(tmpdir, "trivy"), "/usr/local/bin/"], check=True)
-            print("✅ Trivy installed!")
+                src = os.path.join(tmpdir, "trivy")
+                dst = os.path.join(local_bin, "trivy")
+                shutil.copy2(src, dst)
+                os.chmod(dst, 0o755)
+            print(f"✅ Trivy installed to {local_bin}!")
             return True
         except Exception as e:
             print(f"⚠️  Could not auto-install Trivy: {e}")
     
     elif system == "windows":
-        # Try Chocolatey first
         if is_installed("choco"):
             if run_cmd(["choco", "install", "trivy", "-y"]):
                 print("✅ Trivy installed via Chocolatey!")
                 return True
         
-        # Download binary directly
         try:
             import zipfile
             url = "https://github.com/aquasecurity/trivy/releases/download/v0.50.0/trivy_0.50.0_windows-64bit.zip"
-            local_bin = os.path.join(os.environ.get("LOCALAPPDATA", ""), "authent8", "bin")
+            local_bin = get_local_bin()
             os.makedirs(local_bin, exist_ok=True)
             
             with tempfile.TemporaryDirectory() as tmpdir:
                 zip_path = os.path.join(tmpdir, "trivy.zip")
-                print("   Downloading Trivy...")
                 urllib.request.urlretrieve(url, zip_path)
-                
                 with zipfile.ZipFile(zip_path, 'r') as z:
                     z.extractall(tmpdir)
-                
-                # Move to local bin
                 src = os.path.join(tmpdir, "trivy.exe")
                 dst = os.path.join(local_bin, "trivy.exe")
                 shutil.copy2(src, dst)
-                
-                # Add to PATH for this session
-                os.environ["PATH"] = local_bin + os.pathsep + os.environ.get("PATH", "")
-                
-                print(f"✅ Trivy installed to {local_bin}")
-                print(f"   Add this to your PATH: {local_bin}")
-                return True
+            print(f"✅ Trivy installed to {local_bin}")
+            return True
         except Exception as e:
             print(f"⚠️  Could not auto-install Trivy: {e}")
     
-    print("❌ Please install Trivy manually: https://trivy.dev/latest/getting-started/installation/")
     return False
 
 def install_gitleaks():
@@ -169,59 +132,54 @@ def install_gitleaks():
     
     elif system == "linux":
         try:
-            arch = platform.machine()
-            if arch == "x86_64":
+            arch = platform.machine().lower()
+            if "x86_64" in arch or "amd64" in arch:
                 arch = "x64"
-            elif arch == "aarch64":
+            elif "arm64" in arch or "aarch64" in arch:
                 arch = "arm64"
             
             url = f"https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_linux_{arch}.tar.gz"
+            local_bin = get_local_bin()
+            os.makedirs(local_bin, exist_ok=True)
+            
             with tempfile.TemporaryDirectory() as tmpdir:
                 tarfile = os.path.join(tmpdir, "gitleaks.tar.gz")
                 urllib.request.urlretrieve(url, tarfile)
                 subprocess.run(["tar", "-xzf", tarfile, "-C", tmpdir], check=True)
-                subprocess.run(["sudo", "mv", os.path.join(tmpdir, "gitleaks"), "/usr/local/bin/"], check=True)
-            print("✅ Gitleaks installed!")
+                src = os.path.join(tmpdir, "gitleaks")
+                dst = os.path.join(local_bin, "gitleaks")
+                shutil.copy2(src, dst)
+                os.chmod(dst, 0o755)
+            print(f"✅ Gitleaks installed to {local_bin}!")
             return True
         except Exception as e:
             print(f"⚠️  Could not auto-install Gitleaks: {e}")
     
     elif system == "windows":
-        # Try Chocolatey first
         if is_installed("choco"):
             if run_cmd(["choco", "install", "gitleaks", "-y"]):
                 print("✅ Gitleaks installed via Chocolatey!")
                 return True
         
-        # Download binary directly
         try:
             import zipfile
             url = "https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_windows_x64.zip"
-            local_bin = os.path.join(os.environ.get("LOCALAPPDATA", ""), "authent8", "bin")
+            local_bin = get_local_bin()
             os.makedirs(local_bin, exist_ok=True)
             
             with tempfile.TemporaryDirectory() as tmpdir:
                 zip_path = os.path.join(tmpdir, "gitleaks.zip")
-                print("   Downloading Gitleaks...")
                 urllib.request.urlretrieve(url, zip_path)
-                
                 with zipfile.ZipFile(zip_path, 'r') as z:
                     z.extractall(tmpdir)
-                
-                # Move to local bin
                 src = os.path.join(tmpdir, "gitleaks.exe")
                 dst = os.path.join(local_bin, "gitleaks.exe")
                 shutil.copy2(src, dst)
-                
-                # Add to PATH for this session
-                os.environ["PATH"] = local_bin + os.pathsep + os.environ.get("PATH", "")
-                
-                print(f"✅ Gitleaks installed to {local_bin}")
-                return True
+            print(f"✅ Gitleaks installed to {local_bin}")
+            return True
         except Exception as e:
             print(f"⚠️  Could not auto-install Gitleaks: {e}")
-    
-    print("❌ Please install Gitleaks manually: https://github.com/gitleaks/gitleaks/releases")
+            
     return False
 
 def check_and_install():
@@ -231,21 +189,18 @@ def check_and_install():
     
     all_ok = True
     
-    # Check Semgrep
     if is_installed("semgrep"):
         print("✅ Semgrep: installed")
     else:
         if not install_semgrep():
             all_ok = False
     
-    # Check Trivy  
     if is_installed("trivy"):
         print("✅ Trivy: installed")
     else:
         if not install_trivy():
             all_ok = False
     
-    # Check Gitleaks
     if is_installed("gitleaks"):
         print("✅ Gitleaks: installed")
     else:
@@ -256,13 +211,11 @@ def check_and_install():
     if all_ok:
         print("🎉 All tools ready! Run 'authent8' to start scanning.\n")
     else:
-        print("⚠️  Some tools need manual installation. Authent8 will work")
-        print("   but skip unavailable scanners. See INSTALL.md for help.\n")
+        print("⚠️  Some tools need manual installation.\n")
     
     return all_ok
 
 def main():
-    """CLI entry point"""
     check_and_install()
 
 if __name__ == "__main__":

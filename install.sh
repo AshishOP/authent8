@@ -21,8 +21,11 @@ echo -e "${NC}"
 echo -e "${GREEN}Privacy-First Security Scanner${NC}"
 echo ""
 
-# Detect OS
+# Detect OS and Architecture
 OS="unknown"
+ARCH="unknown"
+GITLEAKS_ARCH="unknown"
+
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     OS="linux"
     if [ -f /etc/debian_version ]; then
@@ -38,7 +41,24 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     OS="macos"
 fi
 
-echo -e "${BLUE}[1/5]${NC} Detected: $OS"
+# Detect Architecture
+uname_m=$(uname -m)
+case $uname_m in
+    x86_64)
+        ARCH="x64"
+        GITLEAKS_ARCH="x64"
+        ;;
+    aarch64|arm64)
+        ARCH="arm64"
+        GITLEAKS_ARCH="arm64"
+        ;;
+    *)
+        echo -e "${RED}❌ Unsupported architecture: $uname_m"${NC}
+        exit 1
+        ;;
+esac
+
+echo -e "${BLUE}[1/5]${NC} Detected: $OS ($ARCH)"
 
 # Check Python
 echo -e "${BLUE}[2/5]${NC} Checking Python..."
@@ -68,8 +88,8 @@ if ! command -v pipx &> /dev/null; then
         python3 -m pip install --user pipx 2>/dev/null || python3 -m pip install --user --break-system-packages pipx
     fi
     python3 -m pipx ensurepath 2>/dev/null || true
-    # Add ALL possible pipx locations to PATH
-    export PATH="$HOME/.local/bin:$HOME/Library/Python/3.13/bin:$HOME/Library/Python/3.12/bin:$HOME/Library/Python/3.11/bin:$PATH"
+    # Add common pipx paths to current session
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 echo -e "       ${GREEN}✓${NC} pipx ready"
 
@@ -80,7 +100,7 @@ echo -e "${BLUE}[4/5]${NC} Installing Authent8..."
 PIPX_CMD="pipx"
 if ! command -v pipx &> /dev/null; then
     # Find pipx in common locations
-    for p in "$HOME/.local/bin/pipx" "$HOME/Library/Python/3.13/bin/pipx" "$HOME/Library/Python/3.12/bin/pipx" "$HOME/Library/Python/3.11/bin/pipx"; do
+    for p in "$HOME/.local/bin/pipx" "$HOME/Library/Python/*/bin/pipx"; do
         if [ -f "$p" ]; then
             PIPX_CMD="$p"
             break
@@ -119,9 +139,14 @@ if ! command -v trivy &> /dev/null; then
         echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
         sudo apt-get update && sudo apt-get install trivy -y
     elif [[ "$DISTRO" == "fedora" ]]; then
-        sudo rpm -ivh https://github.com/aquasecurity/trivy/releases/download/v0.48.0/trivy_0.48.0_Linux-64bit.rpm
+        # Detect arch for rpm
+        TRIVY_ARCH="64bit"
+        if [[ "$ARCH" == "arm64" ]]; then TRIVY_ARCH="ARM64"; fi
+        sudo rpm -ivh "https://github.com/aquasecurity/trivy/releases/download/v0.48.0/trivy_0.48.0_Linux-${TRIVY_ARCH}.rpm"
     else
-        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+        # Install to local bin to avoid sudo
+        mkdir -p "$HOME/.local/bin"
+        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b "$HOME/.local/bin"
     fi
 fi
 echo -e "       ${GREEN}✓${NC} Trivy ready"
@@ -129,7 +154,7 @@ echo -e "       ${GREEN}✓${NC} Trivy ready"
 # Semgrep
 if ! command -v semgrep &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing Semgrep..."
-    $PIPX_CMD install semgrep 2>/dev/null || pipx install semgrep
+    $PIPX_CMD install semgrep 2>/dev/null || $PIPX_CMD install semgrep --force
 fi
 echo -e "       ${GREEN}✓${NC} Semgrep ready"
 
@@ -139,9 +164,14 @@ if ! command -v gitleaks &> /dev/null; then
     if [[ "$OS" == "macos" ]]; then
         brew install gitleaks
     else
-        # Download latest release
+        # Download latest release with correct architecture
         GITLEAKS_VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
-        curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | sudo tar xz -C /usr/local/bin gitleaks
+        if [ -z "$GITLEAKS_VERSION" ]; then GITLEAKS_VERSION="8.18.1"; fi
+        
+        echo -e "       ${BLUE}Downloading Gitleaks v${GITLEAKS_VERSION} for ${OS}_${GITLEAKS_ARCH}...${NC}"
+        mkdir -p "$HOME/.local/bin"
+        curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${OS}_${GITLEAKS_ARCH}.tar.gz" | tar xz -C "$HOME/.local/bin" gitleaks
+        chmod +x "$HOME/.local/bin/gitleaks"
     fi
 fi
 echo -e "       ${GREEN}✓${NC} Gitleaks ready"
@@ -152,20 +182,22 @@ echo -e "${GREEN}✓ Installation complete!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "Run ${BLUE}authent8${NC} to start scanning!"
-# Add user bin to PATH if on macOS
+
+# Dynamic PATH addition for macOS/Linux
 if [[ "$OS" == "macos" ]]; then
-    USER_BIN="$HOME/Library/Python/3.13/bin"
-    if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
-        echo "export PATH=\"\$HOME/Library/Python/3.13/bin:\$PATH\"" >> ~/.zshrc
-        export PATH="$USER_BIN:$PATH"
-    fi
+    # Add all Python bin directories found
+    for bin_dir in $HOME/Library/Python/*/bin; do
+        if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
+             export PATH="$bin_dir:$PATH"
+        fi
+    done
 fi
+export PATH="$HOME/.local/bin:$PATH"
 
 echo ""
 echo -e "${YELLOW}Optional: Set your AI API key for smart validation:${NC}"
 echo -e "  export OPENAI_API_KEY=your-key-here"
 echo ""
 
-# Auto-run authent8 with the updated PATH
-echo -e "${BLUE}Launching Authent8...${NC}"
-exec "$SHELL" -c "export PATH=\"\$HOME/Library/Python/3.13/bin:\$HOME/Library/Python/3.12/bin:\$HOME/Library/Python/3.11/bin:\$HOME/.local/bin:\$PATH\"; authent8 --help"
+# Launch
+exec "$SHELL" -c "export PATH=\"$PATH\"; authent8 --help"

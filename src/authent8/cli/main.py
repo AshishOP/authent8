@@ -8,6 +8,8 @@ import json
 import os
 import sys
 import time
+import concurrent.futures
+import threading
 from datetime import datetime
 from pathlib import Path
 from rich.console import Console, Group
@@ -436,36 +438,58 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
     
     with Progress(*progress_columns, console=console, transient=False) as progress:
         
-        # Trivy - Dependency Scan
-        t1 = progress.add_task("Dependency Scan ", total=total_files or 1, current_file="")
-        for i, f in enumerate(all_files[:min(20, total_files)]):
-            rel = f.relative_to(project_path) if f.is_relative_to(project_path) else f.name
-            progress.update(t1, current_file=str(rel)[:35])
-            progress.advance(t1, total_files / 20 if total_files > 20 else 1)
-            time.sleep(0.02)
-        trivy_findings = orchestrator.run_trivy()
-        progress.update(t1, completed=total_files or 1, current_file=f"✓ {len(trivy_findings)} found")
+        # Create tasks (total=100 for percentage display)
+        t1 = progress.add_task("Dependency Scan ", total=100, current_file="Waiting...")
+        t2 = progress.add_task("Pattern Analysis", total=100, current_file="Waiting...")
+        t3 = progress.add_task("Secret Hunting  ", total=100, current_file="Waiting...")
         
-        # Semgrep - Pattern Analysis
-        t2 = progress.add_task("Pattern Analysis", total=total_files or 1, current_file="")
-        for i, f in enumerate(all_files):
-            rel = f.relative_to(project_path) if f.is_relative_to(project_path) else f.name
-            progress.update(t2, current_file=str(rel)[:35])
-            progress.advance(t2)
-            time.sleep(0.01)
-        semgrep_findings = orchestrator.run_semgrep()
-        progress.update(t2, completed=total_files or 1, current_file=f"✓ {len(semgrep_findings)} found")
-        
-        # Gitleaks - Secret Hunting
-        t3 = progress.add_task("Secret Hunting  ", total=total_files or 1, current_file="")
-        for i, f in enumerate(all_files):
-            rel = f.relative_to(project_path) if f.is_relative_to(project_path) else f.name
-            progress.update(t3, current_file=str(rel)[:35])
-            progress.advance(t3)
-            time.sleep(0.01)
-        gitleaks_findings = orchestrator.run_gitleaks()
-        progress.update(t3, completed=total_files or 1, current_file=f"✓ {len(gitleaks_findings)} found")
-        
+        # Helper to animate file scanning and fake percentage
+        def animate_files(task_id, stop_event):
+            import random
+            files = [f.name for f in all_files] if all_files else ["file_check"]
+            current_prog = 0
+            
+            while not stop_event.is_set():
+                # Update files
+                f = random.choice(files)
+                
+                # Zeno's progress: increment towards 95%
+                if current_prog < 95:
+                    step = random.uniform(0.5, 2.0)
+                    current_prog = min(95, current_prog + step)
+                
+                progress.update(task_id, completed=current_prog, current_file=f"Scanning {f[:20]}...")
+                time.sleep(0.1)
+
+        # Run scans in parallel
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            # Start animations
+            stop_t1 = threading.Event()
+            stop_t2 = threading.Event()
+            stop_t3 = threading.Event()
+            
+            threading.Thread(target=animate_files, args=(t1, stop_t1), daemon=True).start()
+            threading.Thread(target=animate_files, args=(t2, stop_t2), daemon=True).start()
+            threading.Thread(target=animate_files, args=(t3, stop_t3), daemon=True).start()
+
+            # Submit tasks
+            future_trivy = executor.submit(orchestrator.run_trivy)
+            future_semgrep = executor.submit(orchestrator.run_semgrep)
+            future_gitleaks = executor.submit(orchestrator.run_gitleaks)
+            
+            # Wait for results and stop animations
+            trivy_findings = future_trivy.result()
+            stop_t1.set()
+            progress.update(t1, total=100, completed=100, current_file=f"✓ {len(trivy_findings)} found")
+            
+            semgrep_findings = future_semgrep.result()
+            stop_t2.set()
+            progress.update(t2, total=100, completed=100, current_file=f"✓ {len(semgrep_findings)} found")
+            
+            gitleaks_findings = future_gitleaks.result()
+            stop_t3.set()
+            progress.update(t3, total=100, completed=100, current_file=f"✓ {len(gitleaks_findings)} found")
+
         findings = trivy_findings + semgrep_findings + gitleaks_findings
 
         # AI Validation
@@ -687,8 +711,29 @@ def show_main_menu():
     return choice
 
 @click.group(invoke_without_command=True)
+@click.option('--uninstall', is_flag=True, help='Uninstall authent8 completely')
 @click.pass_context
-def cli(ctx):
+def cli(ctx, uninstall):
+    """Authent8 - Privacy-First Security Scanner"""
+    if uninstall:
+        if click.confirm("Are you sure you want to uninstall authent8?"):
+            console.print("[yellow]Uninstalling authent8...[/yellow]")
+            try:
+                import subprocess
+                import os
+                # Run the uninstall
+                subprocess.run(["pipx", "uninstall", "authent8"], check=True)
+                # Use standard print to avoid Rich dependency issues after files are gone
+                print("\n\033[32mSuccessfully uninstalled! Goodbye 👋\033[0m")
+                # Immediate exit to avoid cleanup crashes
+                os._exit(0)
+            except Exception as e:
+                # If we are here, something went wrong BEFORE pipx finished
+                print(f"\n\033[31mError during uninstall request: {e}\033[0m")
+                print("Manual command: pipx uninstall authent8")
+                os._exit(1)
+        return
+
     check_first_run()
     if ctx.invoked_subcommand is None:
         run_interactive_loop()

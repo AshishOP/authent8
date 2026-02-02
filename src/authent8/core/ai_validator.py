@@ -1,16 +1,28 @@
 import os
+import sys
 import json
 from typing import List, Dict
 from openai import OpenAI
 
+# Force UTF-8 output to avoid encoding errors
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except:
+        pass
+
 class AIValidator:
     def __init__(self, api_key: str = None, base_url: str = None):
-        # Priority: OPENAI_API_KEY (FastRouter compatible) > GITHUB_TOKEN
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY") or os.getenv("GITHUB_TOKEN")
+        # Priority: FASTROUTER_API_KEY > OPENAI_API_KEY > GITHUB_TOKEN
+        self.api_key = api_key or os.getenv("FASTROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GITHUB_TOKEN")
+        
+        # Skip placeholder keys
+        if self.api_key and self.api_key.startswith("your-"):
+            self.api_key = os.getenv("FASTROUTER_API_KEY") or os.getenv("GITHUB_TOKEN")
         
         # Check for custom base URL (for FastRouter, OpenRouter, etc.)
         if not base_url:
-            base_url = os.getenv("OPENAI_BASE_URL")
+            base_url = os.getenv("FASTROUTER_API_HOST") or os.getenv("OPENAI_BASE_URL")
         
         # Fallback: if using GITHUB_TOKEN without OPENAI_API_KEY, use GitHub Models
         if not base_url and os.getenv("GITHUB_TOKEN") and not os.getenv("OPENAI_API_KEY"):
@@ -31,7 +43,7 @@ class AIValidator:
 
     def validate_findings(self, findings: List[Dict]) -> List[Dict]:
         """
-        Validate findings with AI - removes false positives and adds context-aware suggestions
+        Validate findings with AI - removes false positives
         """
         if not findings:
             return []
@@ -40,7 +52,8 @@ class AIValidator:
             print("⚠️  GITHUB_TOKEN (or OPENAI_API_KEY) not set. Skipping AI validation.")
             return findings
 
-        # Process in batches of 3 to avoid token limits
+        # Process in batches of 3 to avoid token limits (413 errors)
+        # Smaller batches = more reliable, especially for code snippets
         validated = []
         batch_size = 3
         
@@ -51,40 +64,47 @@ class AIValidator:
         return validated
     
     def _validate_batch(self, findings: List[Dict]) -> List[Dict]:
-        """Validate a batch of findings with context-aware suggestions"""
+        """Validate a batch of findings"""
         
+        # Enhance findings with actual file content if snippet is missing
+        for finding in findings:
+            if not finding.get("code_snippet"):
+                try:
+                    file_path = finding.get("file")
+                    line_num = int(finding.get("line", 0))
+                    if file_path and line_num > 0 and os.path.exists(file_path):
+                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                            lines = f.readlines()
+                            # Get context: line-5 to line+5 (11 lines total)
+                            start = max(0, line_num - 6)
+                            end = min(len(lines), line_num + 5)
+                            snippet = "".join(lines[start:end])
+                            finding["code_snippet"] = snippet.strip()
+                except Exception:
+                    pass  # Fail silently on file read errors
+
         prompt = self._build_prompt(findings)
         
         try:
+            # Use model from env (AI_MODEL) or default to gpt-4o
             response = self.client.chat.completions.create(
                 model=self.model, 
                 messages=[
                     {
                         "role": "system", 
-                        "content": """You are an expert security engineer validating security scan findings.
-
-For EACH finding, analyze and provide:
-
-1. **is_false_positive** (boolean): Is this a false alarm? Consider:
-   - Test/example/mock data (likely false positive)
-   - Commented code (likely false positive)
-   - Development-only configs (may be acceptable)
-   - Real production secrets/vulnerabilities (NOT false positive)
-
-2. **confidence** (0-100): Your confidence in this assessment
-
-3. **fix_suggestion** (string): ACTIONABLE, SPECIFIC fix. Examples:
-   - For .env secrets: "Add .env to .gitignore and use environment variables in production"
-   - For SQL injection: "Use parameterized queries: cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))"
-   - For hardcoded API key: "Move to environment variable: api_key = os.getenv('API_KEY')"
-   - For eval(): "Replace eval() with ast.literal_eval() or JSON parsing"
-   - For secrets in code: "Remove hardcoded secret, use secret manager or .env file"
-
-4. **reasoning** (string): Brief explanation (max 100 chars)
-
-5. **risk_context** (string): Explain real-world impact if exploited
-
-IMPORTANT: Provide SPECIFIC, ACTIONABLE fixes - not generic "fix the issue" responses.
+                        "content": """You are a security expert validating security scan findings.
+For EACH finding, determine:
+1. is_false_positive (boolean) - Is this a false alarm? Common false positives:
+   - Test/mock data
+   - Example code (usually invalid credentials like '0000', 'EXAMPLE')
+   - Commented code
+   - Development dependencies
+   - Documentation examples
+   - Checksums (MD5 for ETag/Integrity is SAFE, only unsafe for passwords)
+   
+2. confidence (0-100) - How confident are you in this assessment?
+3. fix_suggestion (string) - One-line actionable fix if real issue
+4. reasoning (string) - Brief explanation (max 100 chars)
 
 Respond ONLY with valid JSON array. No markdown, no explanation."""
                     },
@@ -116,7 +136,6 @@ Respond ONLY with valid JSON array. No markdown, no explanation."""
                         "ai_confidence": validation.get("confidence", 0),
                         "fix_suggestion": validation.get("fix_suggestion", ""),
                         "ai_reasoning": validation.get("reasoning", ""),
-                        "risk_context": validation.get("risk_context", ""),
                         "validated": True
                     })
                 else:
@@ -125,149 +144,74 @@ Respond ONLY with valid JSON array. No markdown, no explanation."""
             return findings
             
         except Exception as e:
-            print(f"⚠️  AI validation failed for batch: {e}")
-            # Fallback: mark all as unvalidated, add generic suggestions
+            # Log error for debugging
+            import sys
+            err_msg = str(e).encode('ascii', 'ignore').decode('ascii')
+            print(f"AI validation error: {err_msg[:100]}", file=sys.stderr)
+            
+            # Fallback: mark all as unvalidated
             for finding in findings:
                 finding.update({
                     "validated": False,
                     "is_false_positive": False,
                     "ai_confidence": 0,
-                    "fix_suggestion": self._get_fallback_suggestion(finding),
-                    "ai_reasoning": "Fallback suggestion (AI unavailable)",
-                    "risk_context": self._get_risk_context(finding),
+                    "ai_error": err_msg[:100]
                 })
             return findings
     
-    def _get_risk_context(self, finding: Dict) -> str:
-        """Get risk context for a finding"""
-        message = finding.get("message", "").lower()
-        severity = finding.get("severity", "MEDIUM")
-        
-        if "sql" in message:
-            return "Attacker could read/modify/delete database data"
-        elif "command" in message or "os.system" in message:
-            return "Attacker could execute arbitrary system commands"
-        elif "eval" in message:
-            return "Attacker could execute arbitrary Python code"
-        elif "secret" in message or "api key" in message or "hardcoded" in message:
-            return "Exposed credentials could be used to access external services"
-        elif "xss" in message:
-            return "Attacker could steal user sessions or deface website"
-        elif "pickle" in message or "deserializ" in message:
-            return "Attacker could execute arbitrary code via malicious data"
-        elif severity == "CRITICAL":
-            return "This is a critical vulnerability that should be fixed immediately"
-        elif severity == "HIGH":
-            return "This vulnerability could be exploited to compromise the application"
-        else:
-            return "This issue should be reviewed and addressed"
-    
-    def _get_fallback_suggestion(self, finding: Dict) -> str:
-        """Provide fallback suggestions when AI is unavailable"""
-        file_path = finding.get("file", "").lower()
-        message = finding.get("message", "").lower()
-        rule_id = finding.get("rule_id", "").lower()
-        tool = finding.get("tool", "").lower()
-        
-        # .env file secrets
-        if ".env" in file_path:
-            return "Add .env to .gitignore and never commit secrets. Use environment variables in production."
-        
-        # Hardcoded secrets/API keys
-        if any(x in message for x in ["hardcoded", "api key", "secret", "password", "token"]):
-            return "Move secrets to environment variables or use a secret manager (AWS Secrets Manager, HashiCorp Vault)."
-        
-        # SQL injection
-        if "sql" in message or "sql-injection" in rule_id:
-            return "Use parameterized queries instead of string concatenation for SQL."
-        
-        # Command injection / shell
-        if any(x in message for x in ["command", "shell", "os.system", "subprocess"]):
-            return "Avoid shell=True, sanitize inputs, use subprocess with list arguments."
-        
-        # Eval
-        if "eval" in message:
-            return "Replace eval() with ast.literal_eval() or use JSON parsing."
-        
-        # XSS
-        if "xss" in message or "innerhtml" in message:
-            return "Sanitize user input before rendering. Use textContent instead of innerHTML."
-        
-        # Deserialization
-        if "pickle" in message or "deserializ" in message:
-            return "Use JSON instead of pickle. Never deserialize untrusted data."
-        
-        # Gitleaks findings
-        if tool == "gitleaks":
-            return "Remove or rotate this secret immediately. Add pattern to .gitignore."
-        
-        # Default
-        return "Review this finding and apply security best practices."
+    def _sanitize_text(self, text: str) -> str:
+        """Remove non-ASCII characters to avoid encoding issues"""
+        if not text:
+            return ""
+        # Replace common Unicode chars with ASCII equivalents
+        replacements = {
+            '\u2026': '...',  # ellipsis
+            '\u2019': "'",    # right single quote
+            '\u2018': "'",    # left single quote
+            '\u201c': '"',    # left double quote
+            '\u201d': '"',    # right double quote
+            '\u2014': '--',   # em dash
+            '\u2013': '-',    # en dash
+            '\u00a0': ' ',    # non-breaking space
+        }
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+        # Remove any remaining non-ASCII
+        return text.encode('ascii', 'ignore').decode('ascii')
     
     def _build_prompt(self, findings: List[Dict]) -> str:
-        """Build AI prompt with context for better suggestions"""
+        """Build AI prompt with minimal context"""
         
         sanitized = []
         for idx, f in enumerate(findings):
-            file_path = f.get("file", "")
-            file_name = file_path.split("/")[-1] if file_path else "unknown"
-            
-            # Determine file context
-            file_context = self._get_file_context(file_path)
-            
+            # More aggressive truncation to prevent 413 errors
+            # Also sanitize text to avoid Unicode encoding issues
             sanitized.append({
                 "id": idx,
                 "tool": f.get("tool"),
                 "type": f.get("type"),
                 "severity": f.get("severity"),
-                "rule_id": f.get("rule_id", "")[:60],
-                "message": f.get("message", f.get("description", ""))[:200],
-                "code_snippet": f.get("code_snippet", "")[:150] if f.get("code_snippet") else None,
-                "file": file_name,
-                "file_context": file_context,
+                "rule_id": self._sanitize_text(str(f.get("rule_id", "")))[:50],
+                "message": self._sanitize_text(str(f.get("message", f.get("description", ""))))[:150],
+                "code_snippet": self._sanitize_text(str(f.get("code_snippet", "")))[:1200] if f.get("code_snippet") else None,
+                "file_hint": str(f.get("file", ""))[:50],
                 "line": f.get("line", 0)
             })
         
-        prompt = f"""Analyze these {len(sanitized)} security findings and provide validation with ACTIONABLE fix suggestions.
+        prompt = f"""Analyze these {len(sanitized)} security findings and validate each one.
 
 Findings:
-{json.dumps(sanitized, indent=2)}
+{json.dumps(sanitized, indent=2, ensure_ascii=True)}
 
-For EACH finding (all {len(sanitized)}), respond with:
+For EACH finding (all {len(sanitized)} of them), provide:
 {{
   "id": <finding_id>,
   "is_false_positive": <true/false>,
   "confidence": <0-100>,
-  "fix_suggestion": "<SPECIFIC, ACTIONABLE fix - not generic>",
-  "reasoning": "<brief explanation max 100 chars>",
-  "risk_context": "<what could happen if exploited>"
+  "fix_suggestion": "<one line fix if real issue, empty if false positive>",
+  "reasoning": "<brief explanation max 100 chars>"
 }}
-
-IMPORTANT: 
-- For .env files: suggest adding to .gitignore, not "remove secret"
-- For hardcoded secrets: suggest moving to env vars or secret manager
-- For code vulnerabilities: provide actual code fix example
-- Be specific about the file context (is it test file? config file? production code?)
 
 Respond with JSON array of exactly {len(sanitized)} validation objects."""
         
         return prompt
-    
-    def _get_file_context(self, file_path: str) -> str:
-        """Determine the context of a file for better AI suggestions"""
-        path_lower = file_path.lower()
-        
-        if any(x in path_lower for x in ["test", "spec", "mock", "__test__", "_test."]):
-            return "test_file"
-        elif ".env" in path_lower:
-            return "env_config"
-        elif any(x in path_lower for x in ["example", "sample", "demo", "fixture"]):
-            return "example_file"
-        elif any(x in path_lower for x in ["config", "settings", "conf"]):
-            return "config_file"
-        elif any(x in path_lower for x in [".md", "readme", "docs", "documentation"]):
-            return "documentation"
-        elif any(x in path_lower for x in ["migration", "schema"]):
-            return "database_schema"
-        else:
-            return "production_code"

@@ -1,40 +1,19 @@
 # Semgrep Configuration for Authent8
-# Enhanced security-focused configuration
+# Focus on security issues only
 
 rules:
-  # Core security rulesets (comprehensive coverage)
+  # Core security rulesets
   - p/security-audit
   - p/owasp-top-ten
   - p/cwe-top-25
   
-  # Language-specific security rules
+  # Language-specific
   - p/python
   - p/javascript
   - p/typescript
-  - p/java
-  - p/go
-  - p/ruby
-  - p/php
-  
-  # Framework-specific rules
-  - p/django
-  - p/flask
-  - p/react
-  - p/express
-  - p/nextjs
-  
-  # Supply chain security
-  - p/supply-chain
-  
-  # Additional security patterns
-  - p/secrets
-  - p/jwt
-  - p/sql-injection
-  - p/xss
-  - p/command-injection
 
 exclude:
-  # Directories to skip (performance boost)
+  # Directories to skip
   - node_modules/
   - venv/
   - .venv/
@@ -43,79 +22,23 @@ exclude:
   - dist/
   - build/
   - __pycache__/
-  - .pytest_cache/
-  - coverage/
-  - .next/
-  - .nuxt/
-  - .cache/
-  - target/
-  - bin/
-  - obj/
   
-  # Authent8 internal files (safe patterns, not user input)
-  - "**/install_tools.py"
-  - "**/authent8/**/*.py"
-  
-  # Demo/example directories (intentionally vulnerable for testing)
-  - "**/demo/**"
-  - "**/vulnerable-app/**"
-  - "**/examples/**"
-  
-  # Environment files (separate from code)
-  - "**/.env"
-  - "**/.env.*"
-  
-  # File patterns to skip (reduce false positives)
+  # File patterns to skip
   - "*.min.js"
-  - "*.min.css"
   - "*.bundle.js"
-  - "*.chunk.js"
-  - "*.map"
-  
-  # Test files
   - "*.test.js"
   - "*.spec.js"
   - "*.test.ts"
   - "*.spec.ts"
   - "*.test.py"
   - "test_*.py"
-  - "*_test.py"
-  - "*_test.go"
-  - "*_spec.rb"
-  
-  # Mock/fixture files
-  - "**/fixtures/**"
-  - "**/testdata/**"
-  - "**/mocks/**"
-  - "**/__mocks__/**"
-  - "**/stubs/**"
-  
-  # Generated files
-  - "**/generated/**"
-  - "**/*.generated.*"
-  - "**/migrations/**"
-  
-  # Documentation (markdown with code examples)
-  - "**/*.md"
-  - "**/docs/**"
 
-# Only show impactful severities
 severity:
   - ERROR
   - WARNING
 
-# Performance settings
 timeout: 300
 max-memory: 4000
 
-# Output settings
 output:
   format: json
-  metrics: on
-
-# Additional options
-options:
-  # Enable interfile analysis for better detection
-  interfile: true
-  # Enable secrets detection
-  secrets: true
