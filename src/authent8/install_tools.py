@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Authent8 Tool Installer
-Automatically installs Trivy, Semgrep, and Gitleaks
+Automatically installs Authent8 scanner toolchain
 """
 import subprocess
 import platform
@@ -53,6 +53,86 @@ def install_semgrep():
         return True
     except Exception as e:
         print(f"❌ Failed to install Semgrep: {e}")
+        return False
+
+def install_bandit():
+    """Install Bandit via pip"""
+    print("📦 Installing Bandit...")
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "install", "bandit", "-q"], check=True)
+        print("✅ Bandit installed!")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to install Bandit: {e}")
+        return False
+
+def install_detect_secrets():
+    """Install detect-secrets via pip"""
+    print("📦 Installing detect-secrets...")
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "install", "detect-secrets", "-q"], check=True)
+        print("✅ detect-secrets installed!")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to install detect-secrets: {e}")
+        return False
+
+def install_checkov():
+    """Install Checkov via pip"""
+    print("📦 Installing Checkov...")
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "install", "checkov", "-q"], check=True)
+        print("✅ Checkov installed!")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to install Checkov: {e}")
+        return False
+
+def install_grype():
+    """Install Grype using official install script on Unix-like systems."""
+    print("📦 Installing Grype...")
+    system = platform.system().lower()
+    local_bin = get_local_bin()
+    os.makedirs(local_bin, exist_ok=True)
+    try:
+        if system in ("linux", "darwin"):
+            cmd = f'curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b "{local_bin}"'
+            subprocess.run(["sh", "-c", cmd], check=True)
+            print(f"✅ Grype installed to {local_bin}!")
+            return True
+        if system == "windows" and is_installed("choco"):
+            if run_cmd(["choco", "install", "grype", "-y"]):
+                print("✅ Grype installed via Chocolatey!")
+                return True
+    except Exception as e:
+        print(f"⚠️  Could not auto-install Grype: {e}")
+    return False
+
+def install_osv_scanner():
+    """Install OSV-Scanner."""
+    print("📦 Installing OSV-Scanner...")
+    system = platform.system().lower()
+    local_bin = get_local_bin()
+    os.makedirs(local_bin, exist_ok=True)
+    try:
+        if system in ("linux", "darwin"):
+            # First try Go install if available
+            if shutil.which("go"):
+                env = os.environ.copy()
+                env["GOBIN"] = local_bin
+                subprocess.run(
+                    ["go", "install", "github.com/google/osv-scanner/cmd/osv-scanner@latest"],
+                    check=True,
+                    env=env,
+                )
+                print(f"✅ OSV-Scanner installed via go install to {local_bin}!")
+                return True
+        # Fallback attempt via pip package if available in environment mirror.
+        subprocess.run([sys.executable, "-m", "pip", "install", "osv-scanner", "-q"], check=True)
+        print("✅ OSV-Scanner installed!")
+        return True
+    except Exception as e:
+        print(f"⚠️  Could not auto-install OSV-Scanner: {e}")
         return False
 
 def install_trivy():
@@ -193,6 +273,36 @@ def check_and_install():
         print("✅ Semgrep: installed")
     else:
         if not install_semgrep():
+            all_ok = False
+
+    if is_installed("bandit"):
+        print("✅ Bandit: installed")
+    else:
+        if not install_bandit():
+            all_ok = False
+
+    if is_installed("detect-secrets"):
+        print("✅ detect-secrets: installed")
+    else:
+        if not install_detect_secrets():
+            all_ok = False
+
+    if is_installed("checkov"):
+        print("✅ Checkov: installed")
+    else:
+        if not install_checkov():
+            all_ok = False
+
+    if is_installed("grype"):
+        print("✅ Grype: installed")
+    else:
+        if not install_grype():
+            all_ok = False
+
+    if is_installed("osv-scanner"):
+        print("✅ OSV-Scanner: installed")
+    else:
+        if not install_osv_scanner():
             all_ok = False
     
     if is_installed("trivy"):

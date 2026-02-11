@@ -119,6 +119,46 @@ if (-not $semgrep) {
 }
 Write-Host "       " -NoNewline; Write-Green "✓ Semgrep ready"
 
+# Bandit
+$bandit = Get-Command bandit -ErrorAction SilentlyContinue
+if (-not $bandit) {
+    Write-Host "       " -NoNewline; Write-Yellow "→ Installing Bandit..."
+    python -m pip install --user bandit --quiet
+}
+Write-Host "       " -NoNewline; Write-Green "✓ Bandit ready"
+
+# detect-secrets
+$detectSecrets = Get-Command detect-secrets -ErrorAction SilentlyContinue
+if (-not $detectSecrets) {
+    Write-Host "       " -NoNewline; Write-Yellow "→ Installing detect-secrets..."
+    python -m pip install --user detect-secrets --quiet
+}
+Write-Host "       " -NoNewline; Write-Green "✓ detect-secrets ready"
+
+# Checkov
+$checkov = Get-Command checkov -ErrorAction SilentlyContinue
+if (-not $checkov) {
+    Write-Host "       " -NoNewline; Write-Yellow "→ Installing Checkov..."
+    python -m pip install --user checkov --quiet
+}
+Write-Host "       " -NoNewline; Write-Green "✓ Checkov ready"
+
+# Grype
+$grype = Get-Command grype -ErrorAction SilentlyContinue
+if (-not $grype -and $pkgManager -eq "choco") {
+    Write-Host "       " -NoNewline; Write-Yellow "→ Installing Grype..."
+    choco install grype -y
+}
+Write-Host "       " -NoNewline; Write-Green "✓ Grype ready"
+
+# OSV-Scanner
+$osv = Get-Command osv-scanner -ErrorAction SilentlyContinue
+if (-not $osv) {
+    Write-Host "       " -NoNewline; Write-Yellow "→ Installing OSV-Scanner..."
+    python -m pip install --user osv-scanner --quiet
+}
+Write-Host "       " -NoNewline; Write-Green "✓ OSV-Scanner ready"
+
 # Gitleaks
 $gitleaks = Get-Command gitleaks -ErrorAction SilentlyContinue
 if (-not $gitleaks) {

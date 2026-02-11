@@ -2,7 +2,6 @@ import os
 import sys
 import json
 from typing import List, Dict
-from openai import OpenAI
 
 # Force UTF-8 output to avoid encoding errors
 if sys.stdout.encoding != 'utf-8':
@@ -45,13 +44,18 @@ class AIValidator:
         # Model override hierarchy
         self.model = model or os.getenv("AUTHENT8_AI_MODEL") or os.getenv("AI_MODEL", "gpt-4o-mini")
 
+        self.client = None
         if self.api_key:
-            self.client = OpenAI(
-                api_key=self.api_key,
-                base_url=self.base_url
-            )
-        else:
-            self.client = None
+            try:
+                from openai import OpenAI
+
+                self.client = OpenAI(
+                    api_key=self.api_key,
+                    base_url=self.base_url
+                )
+            except Exception:
+                # Keep client unset; scanner will continue without AI validation.
+                self.client = None
 
     def test_connection(self) -> bool:
         """Test connection to the AI provider with a dummy request"""
@@ -110,49 +114,87 @@ class AIValidator:
         """Apply deterministic rules to catch obvious false positives"""
         for f in findings:
             path = f.get("file", "").lower()
+            file_name = os.path.basename(path)
             rule = str(f.get("rule_id", "")).lower()
             code = str(f.get("code_snippet", "")).lower()
+            message = str(f.get("message", "")).lower()
+            tool = str(f.get("tool", "")).lower()
+            is_test_or_demo = (
+                "/tests/" in path
+                or "\\tests\\" in path
+                or "/test/" in path
+                or "\\test\\" in path
+                or "/mocks/" in path
+                or "\\mocks\\" in path
+                or "/fixtures/" in path
+                or "\\fixtures\\" in path
+                or file_name.startswith("test_")
+                or file_name.endswith("_test.py")
+                or "security_check.py" in file_name
+            )
             
-            # RULE 1: Test Files & Security Checks
-            if any(x in path for x in ["security_check", "test", "mock", "vulnerable"]):
+            # RULE 1: Known internal test fixture file.
+            if "security_check.py" in file_name:
                 f.update({
                     "is_false_positive": True,
                     "ai_confidence": 100,
-                    "ai_reasoning": "File is a known test/demo file.",
+                    "ai_reasoning": "Known internal fixture file.",
                     "validated": True
                 })
                 continue
 
-            # RULE 2: Install Scripts (urllib/chmod)
+            # RULE 2: Install scripts for tool bootstrap logic.
             if "install" in path or "setup.py" in path:
                 if "urllib" in rule or "permissions" in rule or "chmod" in code:
                     f.update({
                         "is_false_positive": True,
-                        "ai_confidence": 100,
+                        "ai_confidence": 95,
                         "ai_reasoning": "Standard installation script behavior.",
                         "validated": True
                     })
                     continue
 
-            # RULE 3: Documentation
+            # RULE 3: Documentation/example files.
             if path.endswith(".md") or path.endswith(".txt"):
                 f.update({
                     "is_false_positive": True,
-                    "ai_confidence": 100,
+                    "ai_confidence": 95,
                     "ai_reasoning": "Secrets in documentation are likely examples.",
                     "validated": True
                 })
                 continue
-                
-            # RULE 4: False Positive Logic File
+
+            # RULE 4: False positive manager logic file itself.
             if "false_positives.py" in path:
-                 f.update({
+                f.update({
                     "is_false_positive": True,
                     "ai_confidence": 100,
                     "ai_reasoning": "Logic handling false positives often mimics vulnerabilities.",
                     "validated": True
                 })
-                 continue
+                continue
+
+            # RULE 5: Placeholder/demo secrets in test fixtures.
+            if tool == "gitleaks" and is_test_or_demo:
+                placeholder_markers = [
+                    "example",
+                    "dummy",
+                    "placeholder",
+                    "sample",
+                    "test",
+                    "mock",
+                    "0000",
+                    "12345",
+                ]
+                evidence = f"{message} {code} {rule}"
+                if any(marker in evidence for marker in placeholder_markers):
+                    f.update({
+                        "is_false_positive": True,
+                        "ai_confidence": 90,
+                        "ai_reasoning": "Likely placeholder secret in test/demo fixture.",
+                        "validated": True
+                    })
+                    continue
     
     def _validate_batch(self, findings: List[Dict]) -> List[Dict]:
         """Validate a batch of findings"""

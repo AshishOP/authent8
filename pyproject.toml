@@ -75,7 +75,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "authent8" = ["py.typed"]
-"authent8.config" = ["*.yaml", "*.yml", "*.toml"]
+"authent8.config" = ["*.yaml", "*.yml", "*.toml", ".*.yaml", ".*.yml", ".trivy.yaml", ".semgrep.yml"]
 
 [tool.black]
 line-length = 100

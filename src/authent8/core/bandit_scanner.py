@@ -43,25 +43,25 @@ class BanditScanner:
                 timeout=120
             )
             
-            # Bandit returns exit code 1 when issues found
-            if result.stdout:
-                try:
-                    data = json.loads(result.stdout)
-                    return self._parse_results(data)
-                except json.JSONDecodeError:
-                    pass
-            
-            return []
+            # Bandit returns 1 when issues are found.
+            if result.returncode not in [0, 1]:
+                err = (result.stderr or result.stdout or "unknown error").strip()
+                raise RuntimeError(f"Bandit failed: {err[:300]}")
+
+            if not result.stdout.strip():
+                return []
+
+            try:
+                data = json.loads(result.stdout)
+                return self._parse_results(data)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError("Bandit returned invalid JSON output") from exc
             
         except FileNotFoundError:
             # Bandit not installed - that's OK
             return []
         except subprocess.TimeoutExpired:
-            print("⚠️  Bandit scan timed out")
-            return []
-        except Exception as e:
-            print(f"⚠️  Bandit scan failed: {e}")
-            return []
+            raise RuntimeError("Bandit scan timed out after 120s")
     
     def _parse_results(self, data: Dict) -> List[Dict]:
         """Parse Bandit JSON output into normalized format"""
@@ -92,7 +92,7 @@ class BanditScanner:
                 "message": result.get("issue_text", "")[:200],
                 
                 # Location
-                "file": Path(result.get("filename", "")).name,
+                "file": result.get("filename", ""),
                 "line": result.get("line_number", 0),
                 "code_snippet": code,
                 

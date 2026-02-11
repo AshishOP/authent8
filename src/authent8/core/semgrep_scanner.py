@@ -13,77 +13,69 @@ class SemgrepScanner:
     
     def __init__(self, project_path: Path):
         self.project_path = project_path
-        self.config_path = Path(__file__).parent.parent / "config" / ".semgrep.yml"
-    
-    # Sane defaults for Semgrep
-    EXCLUDE_PATTERNS = [
-        "node_modules", ".git", "dist", "build", "vendor", "__pycache__",
-        ".venv", "venv", ".cache", ".tmp", "*.min.js", "*.min.css",
-        "package-lock.json", "yarn.lock", "poetry.lock"
-    ]
+        self.custom_rules_path = Path(__file__).parent.parent / "config" / "custom_rules.yml"
     
     def scan(self, ignored_patterns: List[str] = None) -> List[Dict]:
         """Run Semgrep scan and return normalized findings"""
+        exclude_args = []
+        combined_excludes = list(dict.fromkeys(ignored_patterns or []))
+        for pattern in combined_excludes:
+            exclude_args.extend(["--exclude", pattern])
+
+        cmd = [
+            "semgrep",
+            "--config", "p/security-audit",
+            "--config", "p/owasp-top-ten",
+            "--config", "p/cwe-top-25",
+            "--config", "p/secrets",
+            "--config", "p/python",
+            "--config", "p/flask",
+            "--config", "p/django",
+            "--config", "p/jwt",
+            "--config", "p/sql-injection",
+            "--config", "p/command-injection",
+            "--config", "p/xss",
+            "--config", "p/insecure-transport",
+            "--config", "p/docker",
+            "--config", "p/kubernetes",
+            "--config", "p/terraform",
+            "--config", "p/aws-security",
+            "--config", "p/react",
+            "--config", "p/typescript",
+            "--json",
+            "--quiet",
+            "--no-git-ignore",
+            "--metrics", "off",  # Privacy: no telemetry
+        ]
+
+        if self.custom_rules_path.exists():
+            cmd.extend(["--config", str(self.custom_rules_path)])
+
+        cmd += exclude_args + [str(self.project_path)]
+
         try:
-            # Build exclude arguments
-            exclude_args = []
-            combined_excludes = list(set(self.EXCLUDE_PATTERNS + (ignored_patterns or [])))
-            for pattern in combined_excludes:
-                exclude_args.extend(["--exclude", pattern])
-            
-            # Use multiple rule packs for maximum coverage
-            # NOTE: Custom rules removed - they can cause silent failures
-            cmd = [
-                "semgrep",
-                "--config", "p/security-audit",
-                "--config", "p/owasp-top-ten",
-                "--config", "p/cwe-top-25",           # CWE Top 25 2024
-                "--config", "p/secrets",              # Secrets detection
-                "--config", "p/python",               # Python-specific patterns
-                "--config", "p/flask",                # Flask security
-                "--config", "p/django",               # Django security
-                "--config", "p/jwt",                  # JWT vulnerabilities
-                "--config", "p/sql-injection",        # SQL injection
-                "--config", "p/command-injection",    # Command injection
-                "--config", "p/xss",                  # XSS patterns
-                "--config", "p/insecure-transport",   # HTTP/TLS issues
-                "--config", "p/docker",               # Dockerfile security
-                "--config", "p/kubernetes",           # Kubernetes manifests
-                "--config", "p/terraform",            # Terraform security
-                "--config", "p/aws-security",         # AWS best practices
-                "--config", "p/react",                # React security patterns
-                "--config", "p/typescript",           # TypeScript specific
-                "--json",
-                "--quiet",
-                "--no-git-ignore",    # Don't skip untracked files
-                "--metrics", "off",   # Privacy: no telemetry
-            ] + exclude_args + [
-                str(self.project_path)
-            ]
-            
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minutes
+                timeout=300,  # 5 minutes
             )
-            
-            # Semgrep returns exit code 1 when findings exist
-            if result.returncode in [0, 1] and result.stdout:
-                data = json.loads(result.stdout)
-                return self._parse_results(data)
-            
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("Semgrep scan timed out after 300s") from exc
+
+        # Semgrep returns 1 when findings exist.
+        if result.returncode not in [0, 1]:
+            err = (result.stderr or result.stdout or "unknown error").strip()
+            raise RuntimeError(f"Semgrep failed: {err[:300]}")
+
+        if not result.stdout.strip():
             return []
-            
-        except subprocess.TimeoutExpired:
-            print("⚠️  Semgrep scan timed out")
-            return []
-        except json.JSONDecodeError:
-            print("⚠️  Semgrep returned invalid JSON")
-            return []
-        except Exception as e:
-            print(f"⚠️  Semgrep scan failed: {e}")
-            return []
+
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("Semgrep returned invalid JSON output") from exc
+        return self._parse_results(data)
     
     def _sanitize_text(self, text: str) -> str:
         """Remove non-ASCII characters to avoid encoding issues"""

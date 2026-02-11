@@ -158,6 +158,45 @@ if ! command -v semgrep &> /dev/null; then
 fi
 echo -e "       ${GREEN}✓${NC} Semgrep ready"
 
+# Bandit
+if ! command -v bandit &> /dev/null; then
+    echo -e "       ${YELLOW}→${NC} Installing Bandit..."
+    $PIPX_CMD install bandit 2>/dev/null || $PIPX_CMD install bandit --force
+fi
+echo -e "       ${GREEN}✓${NC} Bandit ready"
+
+# detect-secrets
+if ! command -v detect-secrets &> /dev/null; then
+    echo -e "       ${YELLOW}→${NC} Installing detect-secrets..."
+    python3 -m pip install --user detect-secrets -q || true
+fi
+echo -e "       ${GREEN}✓${NC} detect-secrets ready"
+
+# Checkov
+if ! command -v checkov &> /dev/null; then
+    echo -e "       ${YELLOW}→${NC} Installing Checkov..."
+    python3 -m pip install --user checkov -q || true
+fi
+echo -e "       ${GREEN}✓${NC} Checkov ready"
+
+# Grype
+if ! command -v grype &> /dev/null; then
+    echo -e "       ${YELLOW}→${NC} Installing Grype..."
+    curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b "$HOME/.local/bin" || true
+fi
+echo -e "       ${GREEN}✓${NC} Grype ready"
+
+# OSV-Scanner
+if ! command -v osv-scanner &> /dev/null; then
+    echo -e "       ${YELLOW}→${NC} Installing OSV-Scanner..."
+    if command -v go &> /dev/null; then
+        GOBIN="$HOME/.local/bin" go install github.com/google/osv-scanner/cmd/osv-scanner@latest || true
+    else
+        python3 -m pip install --user osv-scanner -q || true
+    fi
+fi
+echo -e "       ${GREEN}✓${NC} OSV-Scanner ready"
+
 # Gitleaks
 if ! command -v gitleaks &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing Gitleaks..."

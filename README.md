@@ -1,6 +1,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Privacy-First-green?style=for-the-badge" alt="Privacy First">
-  <img src="https://img.shields.io/badge/100%25-Offline-blue?style=for-the-badge" alt="100% Offline">
+  <img src="https://img.shields.io/badge/Local-First-blue?style=for-the-badge" alt="Local First">
   <img src="https://img.shields.io/badge/Zero-Cloud-red?style=for-the-badge" alt="Zero Cloud">
 </p>
 
@@ -107,7 +107,7 @@ Authent8 comes with a **built-in AI Setup Wizard**. You can connect your favorit
 3. Choose **Setup AI Provider**.
 4. Paste your API Key and pick a model.
 
-**Privacy Note:** Even with AI enabled, we **never** send your whole file. We only send a tiny snippet of the specific bugged line so the AI can explain it to you.
+**Privacy Note:** Even with AI enabled, we **never** send your whole file. We only send a small local context snippet around the finding for explanation.
 
 ---
 
@@ -161,6 +161,7 @@ Authent8 orchestrates the world's best open-source security engines:
 *   **Trivy:** For scanning your packages/dependencies.
 *   **Semgrep:** For finding dangerous code patterns.
 *   **Gitleaks:** For hunting down accidentally saved passwords.
+*   **Bandit:** For Python-specific security smells and unsafe APIs.
 *   **Rich:** For that beautiful terminal interface.
 
 ---
@@ -169,4 +170,3 @@ Authent8 orchestrates the world's best open-source security engines:
   <strong>Built for developers who care about privacy 🔒</strong><br>
   <a href="https://authent8.vercel.app">Official Website</a> · <a href="AI_IMPACT_STATEMENT.md">AI Impact Statement</a>
 </p>
-

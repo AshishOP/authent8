@@ -9,7 +9,6 @@ import os
 import sys
 import time
 import concurrent.futures
-import threading
 from datetime import datetime
 from pathlib import Path
 from rich.console import Console, Group
@@ -47,6 +46,7 @@ load_dotenv(Path(__file__).parent.parent.parent.parent / ".env")
 # Real Backend Imports
 from authent8.core.scanner_orchestrator import ScanOrchestrator
 from authent8.core.ai_validator import AIValidator
+from authent8.core.connectivity import has_internet
 from authent8.install_tools import check_and_install, is_installed
 from authent8 import __version__
 
@@ -123,13 +123,25 @@ def get_recent_scans(limit: int = 3) -> list:
 
 def check_first_run():
     marker_file = Path.home() / ".authent8_installed"
-    tools_missing = not (is_installed("trivy") and is_installed("semgrep") and is_installed("gitleaks"))
+    required_tools = [
+        "trivy",
+        "semgrep",
+        "gitleaks",
+        "bandit",
+        "detect-secrets",
+        "checkov",
+        "grype",
+        "osv-scanner",
+    ]
+    tools_missing = not (
+        all(is_installed(tool) for tool in required_tools)
+    )
     
     if tools_missing and not marker_file.exists():
         console.print()
         console.print(Panel(
             "[bold #ff9900]🔧 Setup Required[/bold #ff9900]\n\n"
-            "Security tools (Trivy, Semgrep, Gitleaks) are missing.\n"
+            "Security tools are missing.\n"
             "Would you like to install them now?",
             title="[bold #3b82f6]Welcome[/bold #3b82f6]",
             border_style="#1a1a1a"
@@ -389,6 +401,30 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
     console.print(f"\n [#3b82f6]authent8[/#3b82f6] [#1a1a1a]│[/#1a1a1a] [#e5e5e5]Scanning:[/#e5e5e5] [#666666]{path}[/#666666]\n")
     
     project_path = Path(path)
+
+    online = has_internet()
+    if not online:
+        console.print("[#ff9900]⚠ You appear to be offline.[/#ff9900]")
+        while True:
+            net_choice = questionary.select(
+                "Network required for full scan coverage:",
+                choices=[
+                    "Connect to Wi-Fi",
+                    "Continue without Wi-Fi",
+                ],
+                style=custom_style,
+            ).ask()
+            if net_choice == "Connect to Wi-Fi":
+                console.print("[#666666]Retrying internet check...[/#666666]")
+                online = has_internet()
+                if online:
+                    console.print("[#10b981]✓ Internet detected. Running full scan.[/#10b981]")
+                    break
+                console.print("[#ff9900]Still offline.[/#ff9900]")
+                continue
+            if net_choice == "Continue without Wi-Fi":
+                break
+            return
     
     try:
         orchestrator = ScanOrchestrator(path)
@@ -398,21 +434,8 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
         console.print(f"[#ff3333]Error:[/#ff3333] {e}")
         return
 
-    # Use patterns from orchestrator (+ default ones)
-    exclude_dirs = set(orchestrator.ignored_patterns) | {
-        'node_modules', '.git', 'dist', 'build', 'vendor', '__pycache__', 
-        '.venv', 'venv', 'env', '.env', 'site-packages', '.tox', 
-        '.pytest_cache', '.mypy_cache', 'coverage', '.coverage', 
-        'htmlcov', '.eggs', '*.egg-info', '.next', '.cache', '.tmp'
-    }
     scannable_exts = {'.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rb', '.php', '.cs', '.yaml', '.yml', '.json'}
     
-    # Collect all scannable files for progress display
-    all_files = [f for f in project_path.rglob('*') if not any(ex in f.parts for ex in exclude_dirs) 
-                 and f.is_file() and f.suffix.lower() in scannable_exts]
-    
-    total_files = len(all_files)
-
     start_time = time.time()
     findings = []
     
@@ -445,71 +468,52 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
             TaskProgressColumn(),
         ]
     
+    selected_tools = orchestrator.get_scan_plan(online=online)
+    if not online:
+        skipped = sorted(set(orchestrator.ALL_TOOLS) - set(selected_tools))
+        if skipped:
+            console.print(f"[#666666]Offline mode: skipping {', '.join(skipped)}[/#666666]")
+
     with Progress(*progress_columns, console=console, transient=False) as progress:
+        tool_tasks = {
+            tool: progress.add_task(f"{tool:14}", total=1, current_file="running...")
+            for tool in selected_tools
+        }
+        tool_findings = {tool: [] for tool in selected_tools}
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(selected_tools))) as executor:
+            future_map = {
+                executor.submit(orchestrator.run_tool, tool): tool for tool in selected_tools
+            }
+            for future in concurrent.futures.as_completed(future_map):
+                tool = future_map[future]
+                result = future.result()
+                tool_findings[tool] = result
+                progress.update(
+                    tool_tasks[tool],
+                    completed=1,
+                    current_file=f"✓ {len(result)} findings",
+                )
+
+        findings = []
+        for tool in selected_tools:
+            findings.extend(tool_findings.get(tool, []))
         
-        # Create tasks (total=100 for percentage display)
-        t1 = progress.add_task("Dependency Scan ", total=100, current_file="Waiting...")
-        t2 = progress.add_task("Pattern Analysis", total=100, current_file="Waiting...")
-        t3 = progress.add_task("Secret Hunting  ", total=100, current_file="Waiting...")
-        
-        # Helper to animate file scanning and fake percentage
-        def animate_files(task_id, stop_event):
-            import random
-            # Use relative paths to show folders
-            if all_files:
-                rel_files = [f.relative_to(project_path) for f in all_files]
-            else:
-                rel_files = [Path("checking_files...")]
-                
-            current_prog = 0
-            
-            while not stop_event.is_set():
-                # Pick a random file and show its parent folder
-                f = random.choice(rel_files)
-                folder_str = str(f.parent) if str(f.parent) != "." else "root"
-                
-                # Zeno's progress: increment towards 95%
-                if current_prog < 95:
-                    step = random.uniform(0.5, 2.0)
-                    current_prog = min(95, current_prog + step)
-                
-                # Truncate long folder paths
-                if len(folder_str) > 20:
-                    folder_str = "..." + folder_str[-17:]
-                    
-                progress.update(task_id, completed=current_prog, current_file=f"dir: {folder_str}")
-                time.sleep(0.08) # Slightly faster flip for better "alive" feel
-
-        # Run scans in parallel
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            # Start animations
-            stop_t1 = threading.Event()
-            stop_t2 = threading.Event()
-            stop_t3 = threading.Event()
-            
-            threading.Thread(target=animate_files, args=(t1, stop_t1), daemon=True).start()
-            threading.Thread(target=animate_files, args=(t2, stop_t2), daemon=True).start()
-            threading.Thread(target=animate_files, args=(t3, stop_t3), daemon=True).start()
-
-            # Submit tasks
-            future_trivy = executor.submit(orchestrator.run_trivy)
-            future_semgrep = executor.submit(orchestrator.run_semgrep)
-            future_gitleaks = executor.submit(orchestrator.run_gitleaks)
-            
-            # Wait for results and stop animations
-            trivy_findings = future_trivy.result()
-            stop_t1.set()
-            progress.update(t1, total=100, completed=100, current_file=f"✓ {len(trivy_findings)} found")
-            
-            semgrep_findings = future_semgrep.result()
-            stop_t2.set()
-            progress.update(t2, total=100, completed=100, current_file=f"✓ {len(semgrep_findings)} found")
-            
-            gitleaks_findings = future_gitleaks.result()
-            stop_t3.set()
-            progress.update(t3, total=100, completed=100, current_file=f"✓ {len(gitleaks_findings)} found")
-
-        findings = trivy_findings + semgrep_findings + gitleaks_findings
+        # De-duplicate cross-tool overlaps to reduce noise
+        deduped = []
+        seen_keys = set()
+        for f in findings:
+            dedupe_key = (
+                f.get("file", ""),
+                int(f.get("line", 0) or 0),
+                f.get("rule_id", ""),
+                f.get("message", ""),
+            )
+            if dedupe_key in seen_keys:
+                continue
+            seen_keys.add(dedupe_key)
+            deduped.append(f)
+        findings = deduped
         
         # Enrich and Filter False Positives (using orchestrator's manager)
         orchestrator._enrich_code_snippets(findings)
@@ -522,7 +526,7 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
 
         # AI Validation
         if not no_ai and findings:
-            t4 = progress.add_task("AI Verification ", total=len(findings), current_file="")
+            t5 = progress.add_task("AI Verification ", total=len(findings), current_file="")
             try:
                 validator = AIValidator() # Will pick up keys/model from config automatically
                 if validator.client:
@@ -532,18 +536,23 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
                     for i in range(0, len(findings), batch_size):
                         batch = findings[i:i+batch_size]
                         file_name = Path(batch[0].get("file", "")).name if batch else ""
-                        progress.update(t4, current_file=f"{file_name} ({len(batch)} issues)")
+                        progress.update(t5, current_file=f"{file_name} ({len(batch)} issues)")
                         result = validator._validate_batch(batch)
                         validated.extend(result)
-                        progress.advance(t4, len(batch))
+                        progress.advance(t5, len(batch))
                     findings = validated
                 else:
-                    progress.update(t4, current_file="⚠ Skipped: No key")
+                    progress.update(t5, current_file="⚠ Skipped: No key")
             except Exception as e:
-                progress.update(t4, current_file=f"⚠ Error: {str(e)[:20]}")
-            progress.update(t4, completed=len(findings), current_file="✓ Complete")
+                progress.update(t5, current_file=f"⚠ Error: {str(e)[:20]}")
+            progress.update(t5, completed=len(findings), current_file="✓ Complete")
 
     console.print()
+
+    if orchestrator.scan_errors:
+        for tool, err in orchestrator.scan_errors.items():
+            console.print(f"[#ff9900]⚠ {tool} scan error:[/#ff9900] {err[:160]}")
+        console.print("[#ff9900]Results are partial because at least one scanner failed.[/#ff9900]\n")
     
     # Filter and Display
     real_findings = [f for f in findings if not f.get("is_false_positive", False)]
@@ -562,8 +571,14 @@ def run_scan_with_progress(path: str, no_ai: bool = False, output: str = None, v
             manage_false_positives(orchestrator, real_findings)
     
     if output:
-        with open(output, 'w') as f:
-            json.dump(findings, f, indent=2)
+        report_payload = {
+            "generated_at": datetime.now().isoformat(),
+            "target": str(project_path),
+            "scan_errors": orchestrator.scan_errors,
+            "findings": findings,
+        }
+        with open(output, 'w', encoding="utf-8") as f:
+            json.dump(report_payload, f, indent=2)
 
 def manage_false_positives(orchestrator, findings):
     """Interactive dialog to suppress findings"""
@@ -730,7 +745,12 @@ def show_main_menu():
     tools = [
         ("Trivy", is_installed('trivy')),
         ("Semgrep", is_installed('semgrep')),
-        ("Gitleaks", is_installed('gitleaks'))
+        ("Gitleaks", is_installed('gitleaks')),
+        ("Bandit", is_installed('bandit')),
+        ("detect-secrets", is_installed('detect-secrets')),
+        ("Checkov", is_installed('checkov')),
+        ("Grype", is_installed('grype')),
+        ("OSV", is_installed('osv-scanner')),
     ]
     status_text = Text()
     for name, ok in tools:
@@ -749,7 +769,7 @@ def show_main_menu():
     
     features.add_row("🔒 Privacy-First", "Your code never leaves your machine")
     features.add_row("🤖 AI-Powered", "Reduces false positives with smart validation")
-    features.add_row("⚡ Fast Scanning", "Trivy + Semgrep + Gitleaks in one command")
+    features.add_row("⚡ Fast Scanning", "Multi-engine scan with offline fallback")
     
     console.print(Align.center(features))
     console.print("\n")
@@ -915,6 +935,11 @@ def run_configuration_menu():
         config_table.add_row("Trivy", "✓ Installed" if is_installed('trivy') else "✗ Missing")
         config_table.add_row("Semgrep", "✓ Installed" if is_installed('semgrep') else "✗ Missing")
         config_table.add_row("Gitleaks", "✓ Installed" if is_installed('gitleaks') else "✗ Missing")
+        config_table.add_row("Bandit", "✓ Installed" if is_installed('bandit') else "✗ Missing")
+        config_table.add_row("detect-secrets", "✓ Installed" if is_installed('detect-secrets') else "✗ Missing")
+        config_table.add_row("Checkov", "✓ Installed" if is_installed('checkov') else "✗ Missing")
+        config_table.add_row("Grype", "✓ Installed" if is_installed('grype') else "✗ Missing")
+        config_table.add_row("OSV Scanner", "✓ Installed" if is_installed('osv-scanner') else "✗ Missing")
         
         console.print(config_table)
         

@@ -17,48 +17,45 @@ class TrivyScanner:
     
     def scan(self, ignored_patterns: List[str] = None) -> List[Dict]:
         """Run Trivy scan and return normalized findings"""
-        try:
-            cmd = [
-                "trivy", "fs",
-                "--config", str(self.config_path),
-                "--severity", "CRITICAL,HIGH,MEDIUM",
-                "--scanners", "vuln,misconfig", # Enable IaC scanning
-                "--format", "json",
-                "--quiet"
-            ]
-            
-            # Add ignore patterns
-            if ignored_patterns:
-                # Trivy uses comma separated lists for skips
-                # Most patterns from .a8ignore will be dirs
-                cmd.extend(["--skip-dirs", ",".join(ignored_patterns)])
-                cmd.extend(["--skip-files", ",".join(ignored_patterns)])
+        cmd = [
+            "trivy", "fs",
+            "--config", str(self.config_path),
+            "--severity", "CRITICAL,HIGH,MEDIUM",
+            "--scanners", "vuln,misconfig",  # Enable IaC scanning
+            "--format", "json",
+            "--quiet"
+        ]
 
-            cmd.append(str(self.project_path))
-            
+        if ignored_patterns:
+            for pattern in ignored_patterns:
+                cmd.extend(["--skip-dirs", pattern])
+                cmd.extend(["--skip-files", pattern])
+
+        cmd.append(str(self.project_path))
+
+        try:
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=600  # 10 minutes
+                timeout=600,  # 10 minutes
             )
-            
-            if result.returncode == 0 and result.stdout:
-                data = json.loads(result.stdout)
-                return self._parse_results(data)
-            
-            # No findings or error
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("Trivy scan timed out after 600s") from exc
+
+        if result.returncode != 0:
+            err = (result.stderr or result.stdout or "unknown error").strip()
+            raise RuntimeError(f"Trivy failed: {err[:300]}")
+
+        if not result.stdout.strip():
             return []
-            
-        except subprocess.TimeoutExpired:
-            print("⚠️  Trivy scan timed out")
-            return []
-        except json.JSONDecodeError:
-            print("⚠️  Trivy returned invalid JSON")
-            return []
-        except Exception as e:
-            print(f"⚠️  Trivy scan failed: {e}")
-            return []
+
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("Trivy returned invalid JSON output") from exc
+
+        return self._parse_results(data)
     
     def _parse_results(self, data: Dict) -> List[Dict]:
         """Parse Trivy JSON output into normalized format"""
@@ -69,6 +66,7 @@ class TrivyScanner:
         for result in results:
             target = result.get("Target", "")
             vulnerabilities = result.get("Vulnerabilities", [])
+            misconfigs = result.get("Misconfigurations", [])
             
             for vuln in vulnerabilities:
                 finding = {
@@ -97,6 +95,25 @@ class TrivyScanner:
                     "validated": False
                 }
                 
+                findings.append(finding)
+
+            for misconfig in misconfigs:
+                finding = {
+                    "tool": "trivy",
+                    "type": "misconfig",
+                    "severity": misconfig.get("Severity", "MEDIUM"),
+                    "title": misconfig.get("Title", "")[:200],
+                    "description": misconfig.get("Description", "")[:500],
+                    "message": misconfig.get("Message", misconfig.get("Title", ""))[:200],
+                    "file": target if target else "infrastructure",
+                    "line": 0,
+                    "rule_id": misconfig.get("ID", ""),
+                    "is_false_positive": False,
+                    "ai_confidence": 0,
+                    "fix_suggestion": "",
+                    "ai_reasoning": "",
+                    "validated": False,
+                }
                 findings.append(finding)
         
         return findings

@@ -30,13 +30,13 @@ class FalsePositiveManager:
             signature = str(finding.get("line", 0))
             
         raw = f"{rule}|{file}|{signature}"
-        return hashlib.md5(raw.encode()).hexdigest()
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def _load(self):
         """Load false positives from file"""
         if self.fp_file.exists():
             try:
-                with open(self.fp_file, 'r') as f:
+                with open(self.fp_file, 'r', encoding="utf-8") as f:
                     data = json.load(f)
                     self.ignored_hashes = set(data.get("hashes", []))
                     self.ignored_findings = data.get("findings", [])
@@ -50,7 +50,7 @@ class FalsePositiveManager:
             "hashes": list(self.ignored_hashes),
             "findings": self.ignored_findings
         }
-        with open(self.fp_file, 'w') as f:
+        with open(self.fp_file, 'w', encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
     def add(self, finding: Dict):
