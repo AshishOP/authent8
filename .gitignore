@@ -47,6 +47,7 @@ benchmark*.py
 *ACCURACY*.md
 DEMO_SCRIPT.md
 REAL_BENCHMARKS.md
+DETECTION_UPGRADE_PLAN.md
 benchmark_datasets/
 benchmark_real/
 test_*.py
