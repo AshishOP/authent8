@@ -157,12 +157,18 @@ authent8 --uninstall
 
 ## 🛠️ Built On Giants
 
-Authent8 orchestrates the world's best open-source security engines:
-*   **Trivy:** For scanning your packages/dependencies.
-*   **Semgrep:** For finding dangerous code patterns.
-*   **Gitleaks:** For hunting down accidentally saved passwords.
-*   **Bandit:** For Python-specific security smells and unsafe APIs.
-*   **Rich:** For that beautiful terminal interface.
+Authent8 orchestrates open-source security engines across code, secrets, dependencies, and IaC:
+*   **Trivy:** Dependency and misconfiguration scanning.
+*   **Semgrep:** SAST pattern detection across multiple languages.
+*   **Gitleaks:** Hardcoded secret detection.
+*   **detect-secrets:** Additional secret detection with baseline-friendly rules.
+*   **Bandit:** Python-specific security checks.
+*   **Checkov:** Infrastructure-as-Code security checks.
+*   **Grype:** Software composition/dependency vulnerability scanning.
+*   **OSV-Scanner:** OSS dependency vulnerability scanning via OSV data.
+*   **Rich:** Terminal UI rendering.
+
+If you're offline, Authent8 automatically skips internet-dependent scanners and continues with available local tools.
 
 ---
 
