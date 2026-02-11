@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "authent8"
-version = "1.5.0"
+version = "2.1.1"
 description = "Privacy-First Security Scanner - AI-powered vulnerability detection that keeps your code local"
 readme = "README.md"
 license = {text = "MIT"}

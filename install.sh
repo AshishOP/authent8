@@ -343,10 +343,12 @@ echo ""
 # Launch
 # Seed updater state with latest main commit (best effort).
 AUTHENT8_SHA=$(curl -fsSL https://api.github.com/repos/AshishOP/authent8/commits/main 2>/dev/null | grep '"sha"' | head -n1 | sed -E 's/.*"([a-f0-9]{40})".*/\1/' || true)
-if [ -n "$AUTHENT8_SHA" ]; then
+AUTHENT8_VERSION=$(curl -fsSL https://raw.githubusercontent.com/AshishOP/authent8/main/pyproject.toml 2>/dev/null | grep '^version = ' | head -n1 | sed -E 's/version = "([^"]+)"/\1/' || true)
+if [ -n "$AUTHENT8_SHA" ] || [ -n "$AUTHENT8_VERSION" ]; then
 cat > "$HOME/.authent8_update_state.json" <<EOF
 {
   "commit_sha": "$AUTHENT8_SHA",
+  "app_version": "$AUTHENT8_VERSION",
   "updated_at": "$(date -Iseconds)",
   "source": "git+https://github.com/AshishOP/authent8.git"
 }

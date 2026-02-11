@@ -116,7 +116,7 @@ Authent8 comes with a **built-in AI Setup Wizard**. You can connect your favorit
 When Authent8 finds something, it doesn't just scream at you. It gives you a clean, readable report:
 
 ```text
-󰒃 authent8 v1.5.0
+󰒃 authent8 v2.1.1
 
 target: my-project  files: 24  ai: on
 

@@ -89,6 +89,7 @@ HISTORY_FILE = Path.home() / ".authent8_history.json"
 UPDATE_STATE_FILE = Path.home() / ".authent8_update_state.json"
 REPO_ZIP_URL = "git+https://github.com/AshishOP/authent8.git"
 REPO_COMMIT_API = "https://api.github.com/repos/AshishOP/authent8/commits/main"
+REPO_PYPROJECT_RAW = "https://raw.githubusercontent.com/AshishOP/authent8/main/pyproject.toml"
 MAX_HISTORY = 10
 
 def load_scan_history() -> list:
@@ -151,6 +152,25 @@ def fetch_latest_main_commit(timeout: int = 8) -> str:
     if not sha:
         raise RuntimeError("Could not resolve latest commit SHA from GitHub")
     return sha
+
+def fetch_latest_main_version(timeout: int = 8) -> str:
+    """Fetch latest project version from main branch pyproject.toml."""
+    resp = httpx.get(
+        REPO_PYPROJECT_RAW,
+        headers={"User-Agent": "authent8-updater"},
+        timeout=timeout,
+        follow_redirects=False,
+    )
+    resp.raise_for_status()
+    text = resp.text
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if line.startswith("version ="):
+            _, value = line.split("=", 1)
+            version = value.strip().strip('"').strip("'")
+            if version:
+                return version
+    raise RuntimeError("Could not resolve latest version from pyproject.toml")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SYSTEM CHECKS
@@ -904,8 +924,9 @@ def run_interactive_loop():
                 import subprocess
                 try:
                     latest_sha = fetch_latest_main_commit()
+                    latest_version = fetch_latest_main_version()
                 except Exception as e:
-                    console.print(f"[#ff9900]Could not check latest commit:[/#ff9900] {str(e)[:120]}")
+                    console.print(f"[#ff9900]Could not check latest release info:[/#ff9900] {str(e)[:120]}")
                     console.print("[#666666]Falling back to pipx upgrade check...[/#666666]")
                     res = subprocess.run(["pipx", "upgrade", "authent8"], capture_output=True, text=True)
                     if res.returncode == 0:
@@ -923,12 +944,14 @@ def run_interactive_loop():
 
                 state = load_update_state()
                 local_sha = str(state.get("commit_sha", "")).strip()
+                local_version = str(state.get("app_version", __version__)).strip() or __version__
                 if local_sha and local_sha == latest_sha:
                     console.print("[#10b981]✓ Authent8 is already up to date (latest commit installed).[/#10b981]")
+                    console.print(f"[#666666]Version:[/#666666] v{local_version}")
                     input("\nPress Enter to return...")
                     continue
 
-                console.print(f"[#666666]Update available:[/#666666] {latest_sha[:8]}")
+                console.print(f"[#666666]Update available:[/#666666] v{local_version} → v{latest_version}")
                 res = subprocess.run(
                     ["pipx", "install", REPO_ZIP_URL, "--force"],
                     capture_output=True,
@@ -938,6 +961,7 @@ def run_interactive_loop():
                     save_update_state(
                         {
                             "commit_sha": latest_sha,
+                            "app_version": latest_version,
                             "updated_at": datetime.now().isoformat(),
                             "source": REPO_ZIP_URL,
                         }

@@ -298,9 +298,13 @@ Write-Yellow "Note: You may need to restart your terminal for PATH changes to ta
 # Seed updater state with latest main commit (best effort)
 try {
     $shaResp = Invoke-RestMethod -Uri "https://api.github.com/repos/AshishOP/authent8/commits/main"
+    $versionResp = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/AshishOP/authent8/main/pyproject.toml" -UseBasicParsing
+    $version = ""
+    if ($versionResp.Content -match 'version\s*=\s*"([^"]+)"') { $version = $Matches[1] }
     if ($shaResp.sha) {
         $state = @{
             commit_sha = "$($shaResp.sha)"
+            app_version = "$version"
             updated_at = (Get-Date).ToString("o")
             source = "git+https://github.com/AshishOP/authent8.git"
         } | ConvertTo-Json
