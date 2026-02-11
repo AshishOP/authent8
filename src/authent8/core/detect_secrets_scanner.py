@@ -17,7 +17,6 @@ class DetectSecretsScanner:
             "detect-secrets",
             "scan",
             "--all-files",
-            "--json",
             str(self.project_path),
         ]
         try:

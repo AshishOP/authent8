@@ -12,6 +12,8 @@ import tempfile
 import urllib.request
 import tarfile
 import zipfile
+from pathlib import Path
+from urllib.parse import urlparse
 
 def run_cmd(cmd, check=True):
     """Run a command and return success status"""
@@ -43,6 +45,38 @@ def install_with_pipx(package: str, app_hint: str) -> bool:
     except Exception as e:
         print(f"❌ Failed to install {app_hint} via pipx: {e}")
         return False
+
+def _validate_https_url(url: str):
+    parsed = urlparse(url)
+    if parsed.scheme.lower() != "https" or not parsed.netloc:
+        raise ValueError(f"Blocked non-HTTPS or invalid URL: {url}")
+
+def safe_download(url: str, destination: str):
+    """Download helper with strict URL scheme validation."""
+    _validate_https_url(url)
+    urllib.request.urlretrieve(url, destination)
+
+def safe_extract_tar(tar_path: str, extract_to: str):
+    """Extract tar safely, preventing path traversal."""
+    extract_root = Path(extract_to).resolve()
+    with tarfile.open(tar_path, "r:*") as tf:
+        for member in tf.getmembers():
+            target = (extract_root / member.name).resolve()
+            if not str(target).startswith(str(extract_root)):
+                raise ValueError(f"Unsafe tar member path: {member.name}")
+        for member in tf.getmembers():
+            tf.extract(member, extract_to)
+
+def safe_extract_zip(zip_path: str, extract_to: str):
+    """Extract zip safely, preventing path traversal."""
+    extract_root = Path(extract_to).resolve()
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        for member in zf.infolist():
+            target = (extract_root / member.filename).resolve()
+            if not str(target).startswith(str(extract_root)):
+                raise ValueError(f"Unsafe zip member path: {member.filename}")
+        for member in zf.infolist():
+            zf.extract(member, extract_to)
 
 def get_local_bin():
     """Get the local bin path for authent8 tools"""
@@ -145,8 +179,11 @@ def install_osv_scanner():
                 print(f"✅ OSV-Scanner installed via go install to {local_bin}!")
                 return True
         # Binary fallback from GitHub release assets.
-        with urllib.request.urlopen("https://api.github.com/repos/google/osv-scanner/releases/latest") as resp:
-            release_json = resp.read().decode("utf-8", errors="ignore")
+        with tempfile.TemporaryDirectory() as meta_tmp:
+            meta_path = os.path.join(meta_tmp, "osv_release.json")
+            safe_download("https://api.github.com/repos/google/osv-scanner/releases/latest", meta_path)
+            with open(meta_path, "r", encoding="utf-8", errors="ignore") as meta_file:
+                release_json = meta_file.read()
         import re
         match = re.search(r'"tag_name"\s*:\s*"([^"]+)"', release_json)
         version = match.group(1) if match else ""
@@ -164,19 +201,17 @@ def install_osv_scanner():
                     url = f"https://github.com/google/osv-scanner/releases/download/{version}/{name}"
                     dst = os.path.join(tmpdir, name.replace("/", "_"))
                     try:
-                        urllib.request.urlretrieve(url, dst)
+                        safe_download(url, dst)
                     except Exception:
                         continue
                     if name.endswith(".tar.gz"):
                         try:
-                            with tarfile.open(dst, "r:gz") as tf:
-                                tf.extractall(tmpdir)
+                            safe_extract_tar(dst, tmpdir)
                         except Exception:
                             continue
                     elif name.endswith(".zip"):
                         try:
-                            with zipfile.ZipFile(dst, "r") as zf:
-                                zf.extractall(tmpdir)
+                            safe_extract_zip(dst, tmpdir)
                         except Exception:
                             continue
                     else:
@@ -231,8 +266,8 @@ def install_trivy():
             
             with tempfile.TemporaryDirectory() as tmpdir:
                 tarfile = os.path.join(tmpdir, "trivy.tar.gz")
-                urllib.request.urlretrieve(url, tarfile)
-                subprocess.run(["tar", "-xzf", tarfile, "-C", tmpdir], check=True)
+                safe_download(url, tarfile)
+                safe_extract_tar(tarfile, tmpdir)
                 src = os.path.join(tmpdir, "trivy")
                 dst = os.path.join(local_bin, "trivy")
                 shutil.copy2(src, dst)
@@ -256,9 +291,8 @@ def install_trivy():
             
             with tempfile.TemporaryDirectory() as tmpdir:
                 zip_path = os.path.join(tmpdir, "trivy.zip")
-                urllib.request.urlretrieve(url, zip_path)
-                with zipfile.ZipFile(zip_path, 'r') as z:
-                    z.extractall(tmpdir)
+                safe_download(url, zip_path)
+                safe_extract_zip(zip_path, tmpdir)
                 src = os.path.join(tmpdir, "trivy.exe")
                 dst = os.path.join(local_bin, "trivy.exe")
                 shutil.copy2(src, dst)
@@ -294,8 +328,8 @@ def install_gitleaks():
             
             with tempfile.TemporaryDirectory() as tmpdir:
                 tarfile = os.path.join(tmpdir, "gitleaks.tar.gz")
-                urllib.request.urlretrieve(url, tarfile)
-                subprocess.run(["tar", "-xzf", tarfile, "-C", tmpdir], check=True)
+                safe_download(url, tarfile)
+                safe_extract_tar(tarfile, tmpdir)
                 src = os.path.join(tmpdir, "gitleaks")
                 dst = os.path.join(local_bin, "gitleaks")
                 shutil.copy2(src, dst)
@@ -319,9 +353,8 @@ def install_gitleaks():
             
             with tempfile.TemporaryDirectory() as tmpdir:
                 zip_path = os.path.join(tmpdir, "gitleaks.zip")
-                urllib.request.urlretrieve(url, zip_path)
-                with zipfile.ZipFile(zip_path, 'r') as z:
-                    z.extractall(tmpdir)
+                safe_download(url, zip_path)
+                safe_extract_zip(zip_path, tmpdir)
                 src = os.path.join(tmpdir, "gitleaks.exe")
                 dst = os.path.join(local_bin, "gitleaks.exe")
                 shutil.copy2(src, dst)

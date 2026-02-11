@@ -9,8 +9,7 @@ import os
 import sys
 import time
 import concurrent.futures
-import urllib.request
-import urllib.error
+import httpx
 from datetime import datetime
 from pathlib import Path
 from rich.console import Console, Group
@@ -140,12 +139,14 @@ def save_update_state(state: dict):
 
 def fetch_latest_main_commit(timeout: int = 8) -> str:
     """Fetch latest commit SHA for GitHub main branch."""
-    req = urllib.request.Request(
+    resp = httpx.get(
         REPO_COMMIT_API,
         headers={"Accept": "application/vnd.github+json", "User-Agent": "authent8-updater"},
+        timeout=timeout,
+        follow_redirects=False,
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    resp.raise_for_status()
+    data = resp.json()
     sha = str(data.get("sha", "")).strip()
     if not sha:
         raise RuntimeError("Could not resolve latest commit SHA from GitHub")
@@ -189,7 +190,7 @@ def check_first_run():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def clear_screen():
-    os.system('clear' if os.name != 'nt' else 'cls')
+    click.clear()
 
 def get_gradient_banner():
     """Generates a responsive vertical blue gradient banner"""

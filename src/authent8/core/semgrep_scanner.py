@@ -48,25 +48,49 @@ class SemgrepScanner:
             "--metrics", "off",  # Privacy: no telemetry
         ]
 
-        if self.custom_rules_path.exists():
+        has_custom_rules = self.custom_rules_path.exists()
+        if has_custom_rules:
             cmd.extend(["--config", str(self.custom_rules_path)])
 
         cmd += exclude_args + [str(self.project_path)]
 
-        try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300,  # 5 minutes
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise RuntimeError("Semgrep scan timed out after 300s") from exc
+        def run_command(command: List[str]) -> subprocess.CompletedProcess:
+            try:
+                return subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,  # 5 minutes
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise RuntimeError("Semgrep scan timed out after 300s") from exc
 
-        # Semgrep returns 1 when findings exist.
+        result = run_command(cmd)
+
+        # If remote rule downloads fail, fallback to local custom rules only.
         if result.returncode not in [0, 1]:
             err = (result.stderr or result.stdout or "unknown error").strip()
-            raise RuntimeError(f"Semgrep failed: {err[:300]}")
+            lower_err = err.lower()
+            remote_fetch_failed = (
+                "failed to download configuration" in lower_err
+                or "could not download" in lower_err
+                or "network" in lower_err
+            )
+            if remote_fetch_failed and has_custom_rules:
+                local_only_cmd = [
+                    "semgrep",
+                    "--config", str(self.custom_rules_path),
+                    "--json",
+                    "--quiet",
+                    "--no-git-ignore",
+                    "--metrics", "off",
+                ] + exclude_args + [str(self.project_path)]
+                result = run_command(local_only_cmd)
+                if result.returncode not in [0, 1]:
+                    local_err = (result.stderr or result.stdout or "unknown error").strip()
+                    raise RuntimeError(f"Semgrep failed (local fallback): {local_err[:300]}")
+            else:
+                raise RuntimeError(f"Semgrep failed: {err[:300]}")
 
         if not result.stdout.strip():
             return []
