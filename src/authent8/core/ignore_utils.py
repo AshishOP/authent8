@@ -5,6 +5,10 @@ from pathlib import Path
 from typing import Iterable, List
 
 DEFAULT_IGNORE_PATTERNS = [
+    ".env",
+    ".env.*",
+    ".authent8_fp.json",
+    "authent8_report_*.json",
     "node_modules",
     ".git",
     "dist",

@@ -46,6 +46,7 @@ class SemgrepScanner:
             "--quiet",
             "--no-git-ignore",
             "--metrics", "off",  # Privacy: no telemetry
+            "--project-root", str(self.project_path),
         ]
 
         has_custom_rules = self.custom_rules_path.exists()
@@ -65,10 +66,27 @@ class SemgrepScanner:
             except subprocess.TimeoutExpired as exc:
                 raise RuntimeError("Semgrep scan timed out after 300s") from exc
 
+        def parse_if_json_output(result: subprocess.CompletedProcess):
+            out = (result.stdout or "").strip()
+            if not out:
+                return None
+            try:
+                data = json.loads(out)
+            except json.JSONDecodeError:
+                return None
+            # Semgrep often returns code 2 with a parseable JSON payload containing partial findings.
+            if isinstance(data, dict) and "results" in data:
+                return data
+            return None
+
         result = run_command(cmd)
 
         # If remote rule downloads fail, fallback to local custom rules only.
         if result.returncode not in [0, 1]:
+            parsed = parse_if_json_output(result)
+            if parsed is not None:
+                return self._parse_results(parsed)
+
             err = (result.stderr or result.stdout or "unknown error").strip()
             lower_err = err.lower()
             remote_fetch_failed = (
@@ -84,9 +102,13 @@ class SemgrepScanner:
                     "--quiet",
                     "--no-git-ignore",
                     "--metrics", "off",
+                    "--project-root", str(self.project_path),
                 ] + exclude_args + [str(self.project_path)]
                 result = run_command(local_only_cmd)
                 if result.returncode not in [0, 1]:
+                    parsed_local = parse_if_json_output(result)
+                    if parsed_local is not None:
+                        return self._parse_results(parsed_local)
                     local_err = (result.stderr or result.stdout or "unknown error").strip()
                     raise RuntimeError(f"Semgrep failed (local fallback): {local_err[:300]}")
             else:

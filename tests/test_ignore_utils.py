@@ -27,3 +27,9 @@ def test_load_ignore_patterns_reads_a8ignore(tmp_path: Path):
 
     assert "custom_dir" in patterns
     assert "secret.txt" in patterns
+
+
+def test_default_ignores_include_env_and_internal_fp_file(tmp_path: Path):
+    patterns = load_ignore_patterns(tmp_path)
+    assert ".env" in patterns
+    assert ".authent8_fp.json" in patterns

@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List
 
+from .ignore_utils import should_ignore_path
 
 class DetectSecretsScanner:
     """Wrapper for detect-secrets."""
@@ -43,7 +44,15 @@ class DetectSecretsScanner:
         except json.JSONDecodeError as exc:
             raise RuntimeError("detect-secrets returned invalid JSON output") from exc
 
-        return self._parse_results(data)
+        findings = self._parse_results(data)
+        patterns = ignored_patterns or []
+        if not patterns:
+            return findings
+        return [
+            f
+            for f in findings
+            if not should_ignore_path(self.project_path / str(f.get("file", "")), self.project_path, patterns)
+        ]
 
     def _parse_results(self, data: Dict) -> List[Dict]:
         findings: List[Dict] = []
