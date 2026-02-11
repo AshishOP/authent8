@@ -5,6 +5,8 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List
 
+from .ignore_utils import should_ignore_path
+
 
 class GrypeScanner:
     """Wrapper for Grype vulnerability scanner."""
@@ -20,6 +22,10 @@ class GrypeScanner:
             "json",
             "--quiet",
         ]
+        # Avoid scanning local environment directories that are not project source.
+        for rel in (".venv", "venv", "site-packages", ".git", "__pycache__"):
+            cmd.extend(["--exclude", str(self.project_path / rel)])
+
         try:
             result = subprocess.run(
                 cmd,
@@ -45,13 +51,23 @@ class GrypeScanner:
         except json.JSONDecodeError as exc:
             raise RuntimeError("grype returned invalid JSON output") from exc
 
-        return self._parse_results(data)
+        return self._parse_results(data, ignored_patterns or [])
 
-    def _parse_results(self, data: Dict) -> List[Dict]:
+    def _parse_results(self, data: Dict, ignored_patterns: List[str]) -> List[Dict]:
         findings: List[Dict] = []
         for match in data.get("matches", []):
             vuln = match.get("vulnerability", {})
             artifact = match.get("artifact", {})
+            location = artifact.get("locations", [{}])[0].get("path", "dependencies")
+            location_path = Path(location)
+
+            # Ignore non-repo metadata noise, e.g. bare METADATA from environment packages.
+            if location_path.name in {"METADATA", "PKG-INFO"} and not (self.project_path / location_path).exists():
+                continue
+
+            if ignored_patterns and should_ignore_path(location_path, self.project_path, ignored_patterns):
+                continue
+
             severity = str(vuln.get("severity", "MEDIUM")).upper()
             if severity not in {"CRITICAL", "HIGH", "MEDIUM", "LOW"}:
                 severity = "MEDIUM"
@@ -64,7 +80,7 @@ class GrypeScanner:
                     "title": vuln.get("id", "")[:200],
                     "description": vuln.get("description", "")[:500],
                     "message": f"{artifact.get('name', 'package')} vulnerable: {vuln.get('id', '')}"[:200],
-                    "file": artifact.get("locations", [{}])[0].get("path", "dependencies"),
+                    "file": location,
                     "line": 0,
                     "package": artifact.get("name", ""),
                     "fixed_version": (vuln.get("fix", {}) or {}).get("versions", [""])[0],

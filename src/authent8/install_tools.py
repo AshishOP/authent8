@@ -9,9 +9,9 @@ import shutil
 import sys
 import os
 import tempfile
-import urllib.request
 import tarfile
 import zipfile
+import httpx
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -54,7 +54,18 @@ def _validate_https_url(url: str):
 def safe_download(url: str, destination: str):
     """Download helper with strict URL scheme validation."""
     _validate_https_url(url)
-    urllib.request.urlretrieve(url, destination)
+    with httpx.stream(
+        "GET",
+        url,
+        follow_redirects=False,
+        timeout=30.0,
+        headers={"User-Agent": "authent8-installer"},
+    ) as response:
+        response.raise_for_status()
+        with open(destination, "wb") as output:
+            for chunk in response.iter_bytes():
+                if chunk:
+                    output.write(chunk)
 
 def safe_extract_tar(tar_path: str, extract_to: str):
     """Extract tar safely, preventing path traversal."""

@@ -147,7 +147,8 @@ def main() -> None:
                     },
                 }
             ]
-        }
+        },
+        [],
     )
     assert len(grype_result) == 1 and grype_result[0]["fixed_version"] == "2.0"
 
