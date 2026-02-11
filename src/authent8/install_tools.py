@@ -10,6 +10,8 @@ import sys
 import os
 import tempfile
 import urllib.request
+import tarfile
+import zipfile
 
 def run_cmd(cmd, check=True):
     """Run a command and return success status"""
@@ -142,9 +144,60 @@ def install_osv_scanner():
                 )
                 print(f"✅ OSV-Scanner installed via go install to {local_bin}!")
                 return True
-        if install_with_pipx("osv-scanner", "OSV-Scanner") and is_installed("osv-scanner"):
-            print("✅ OSV-Scanner installed!")
-            return True
+        # Binary fallback from GitHub release assets.
+        with urllib.request.urlopen("https://api.github.com/repos/google/osv-scanner/releases/latest") as resp:
+            release_json = resp.read().decode("utf-8", errors="ignore")
+        import re
+        match = re.search(r'"tag_name"\s*:\s*"([^"]+)"', release_json)
+        version = match.group(1) if match else ""
+        if version:
+            osv_os = "darwin" if system == "darwin" else ("linux" if system == "linux" else "windows")
+            machine = platform.machine().lower()
+            osv_arch = "arm64" if ("arm64" in machine or "aarch64" in machine) else "amd64"
+            candidates = [
+                f"osv-scanner_{osv_os}_{osv_arch}",
+                f"osv-scanner_{osv_os}_{osv_arch}.tar.gz",
+                f"osv-scanner_{osv_os}_{osv_arch}.zip",
+            ]
+            with tempfile.TemporaryDirectory() as tmpdir:
+                for name in candidates:
+                    url = f"https://github.com/google/osv-scanner/releases/download/{version}/{name}"
+                    dst = os.path.join(tmpdir, name.replace("/", "_"))
+                    try:
+                        urllib.request.urlretrieve(url, dst)
+                    except Exception:
+                        continue
+                    if name.endswith(".tar.gz"):
+                        try:
+                            with tarfile.open(dst, "r:gz") as tf:
+                                tf.extractall(tmpdir)
+                        except Exception:
+                            continue
+                    elif name.endswith(".zip"):
+                        try:
+                            with zipfile.ZipFile(dst, "r") as zf:
+                                zf.extractall(tmpdir)
+                        except Exception:
+                            continue
+                    else:
+                        os.chmod(dst, 0o755)
+                        final = os.path.join(local_bin, "osv-scanner.exe" if system == "windows" else "osv-scanner")
+                        shutil.copy2(dst, final)
+                        if system != "windows":
+                            os.chmod(final, 0o755)
+                        if is_installed("osv-scanner"):
+                            print("✅ OSV-Scanner installed from release binary!")
+                            return True
+
+                    extracted = os.path.join(tmpdir, "osv-scanner.exe" if system == "windows" else "osv-scanner")
+                    if os.path.exists(extracted):
+                        final = os.path.join(local_bin, "osv-scanner.exe" if system == "windows" else "osv-scanner")
+                        shutil.copy2(extracted, final)
+                        if system != "windows":
+                            os.chmod(final, 0o755)
+                        if is_installed("osv-scanner"):
+                            print("✅ OSV-Scanner installed from release archive!")
+                            return True
     except Exception as e:
         print(f"⚠️  Could not auto-install OSV-Scanner: {e}")
     if not is_installed("osv-scanner"):

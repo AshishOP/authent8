@@ -30,6 +30,54 @@ function Ensure-Pipx {
     }
 }
 
+function Install-OsvScanner {
+    # 1) already installed
+    if (Test-ToolReady "osv-scanner") { return $true }
+
+    # 2) go install (works on many dev setups)
+    if (Get-Command go -ErrorAction SilentlyContinue) {
+        try {
+            $userBase = python -c "import site; print(site.USER_BASE)"
+            $goBin = Join-Path $userBase "bin"
+            $env:GOBIN = $goBin
+            go install github.com/google/osv-scanner/cmd/osv-scanner@latest | Out-Null
+            if ($env:Path -notlike "*$goBin*") { $env:Path = "$goBin;$env:Path" }
+            if (Test-ToolReady "osv-scanner") { return $true }
+        } catch {}
+    }
+
+    # 3) release binary fallback
+    try {
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/google/osv-scanner/releases/latest"
+        $tag = $release.tag_name
+        $archRaw = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
+        $arch = if ($archRaw -match "arm64") { "arm64" } else { "amd64" }
+        $tmp = Join-Path $env:TEMP "osv-scanner.zip"
+        $url = "https://github.com/google/osv-scanner/releases/download/$tag/osv-scanner_windows_$arch.zip"
+        Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
+        $extract = Join-Path $env:TEMP "osv-scanner-extract"
+        if (Test-Path $extract) { Remove-Item -Recurse -Force $extract }
+        Expand-Archive -Path $tmp -DestinationPath $extract -Force
+        $exe = Join-Path $extract "osv-scanner.exe"
+        if (Test-Path $exe) {
+            $userBase = python -c "import site; print(site.USER_BASE)"
+            $scripts = Join-Path $userBase "Scripts"
+            if (!(Test-Path $scripts)) { New-Item -ItemType Directory -Path $scripts | Out-Null }
+            Copy-Item $exe (Join-Path $scripts "osv-scanner.exe") -Force
+            if ($env:Path -notlike "*$scripts*") { $env:Path = "$scripts;$env:Path" }
+            if (Test-ToolReady "osv-scanner") { return $true }
+        }
+    } catch {}
+
+    # 4) pipx fallback (may work if package exists in index)
+    try {
+        pipx install osv-scanner --force | Out-Null
+        if (Test-ToolReady "osv-scanner") { return $true }
+    } catch {}
+
+    return $false
+}
+
 # Banner
 Write-Blue @"
 
@@ -202,12 +250,14 @@ if (Test-ToolReady "grype") {
 $osv = Get-Command osv-scanner -ErrorAction SilentlyContinue
 if (-not $osv) {
     Write-Host "       " -NoNewline; Write-Yellow "→ Installing OSV-Scanner..."
-    pipx install osv-scanner --force | Out-Null
+    $ok = Install-OsvScanner
+} else {
+    $ok = $true
 }
-if (Test-ToolReady "osv-scanner") {
+if ($ok -and (Test-ToolReady "osv-scanner")) {
     Write-Host "       " -NoNewline; Write-Green "✓ OSV-Scanner ready"
 } else {
-    Write-Host "       " -NoNewline; Write-Yellow "⚠ OSV-Scanner not installed (optional unless SCA scan enabled)"
+    Write-Host "       " -NoNewline; Write-Red "✗ OSV-Scanner installation failed"
     Mark-ToolFailed "osv-scanner"
 }
 

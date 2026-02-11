@@ -21,6 +21,53 @@ is_tool_ready() {
     command -v "$tool" &> /dev/null || [ -x "$HOME/.local/bin/$tool" ]
 }
 
+install_osv_scanner_binary() {
+    local os_name="$1"
+    local arch_name="$2"
+    local version
+    version=$(curl -fsSL https://api.github.com/repos/google/osv-scanner/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/' || true)
+    [ -z "$version" ] && return 1
+
+    mkdir -p "$HOME/.local/bin"
+    local base_url="https://github.com/google/osv-scanner/releases/download/${version}"
+    local tmpdir
+    tmpdir=$(mktemp -d)
+
+    # Try direct binary, then tar.gz, then zip.
+    if curl -fsSL "${base_url}/osv-scanner_${os_name}_${arch_name}" -o "${tmpdir}/osv-scanner"; then
+        chmod +x "${tmpdir}/osv-scanner"
+        mv "${tmpdir}/osv-scanner" "$HOME/.local/bin/osv-scanner"
+        rm -rf "${tmpdir}"
+        return 0
+    fi
+
+    if curl -fsSL "${base_url}/osv-scanner_${os_name}_${arch_name}.tar.gz" -o "${tmpdir}/osv-scanner.tar.gz"; then
+        tar -xzf "${tmpdir}/osv-scanner.tar.gz" -C "${tmpdir}" || true
+        if [ -f "${tmpdir}/osv-scanner" ]; then
+            chmod +x "${tmpdir}/osv-scanner"
+            mv "${tmpdir}/osv-scanner" "$HOME/.local/bin/osv-scanner"
+            rm -rf "${tmpdir}"
+            return 0
+        fi
+    fi
+
+    if curl -fsSL "${base_url}/osv-scanner_${os_name}_${arch_name}.zip" -o "${tmpdir}/osv-scanner.zip"; then
+        python3 - <<PY || true
+import zipfile
+zipfile.ZipFile("${tmpdir}/osv-scanner.zip", "r").extractall("${tmpdir}")
+PY
+        if [ -f "${tmpdir}/osv-scanner" ]; then
+            chmod +x "${tmpdir}/osv-scanner"
+            mv "${tmpdir}/osv-scanner" "$HOME/.local/bin/osv-scanner"
+            rm -rf "${tmpdir}"
+            return 0
+        fi
+    fi
+
+    rm -rf "${tmpdir}"
+    return 1
+}
+
 echo -e "${BLUE}"
 echo "  █████  ██   ██ ████████ ██  ██ ███████ ███   ██ ████████  █████ "
 echo " ██   ██ ██   ██    ██    ██  ██ ██      ████  ██    ██    ██   ██"
@@ -226,8 +273,19 @@ if ! command -v osv-scanner &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing OSV-Scanner..."
     if command -v go &> /dev/null; then
         GOBIN="$HOME/.local/bin" go install github.com/google/osv-scanner/cmd/osv-scanner@latest || true
+    fi
+    if ! is_tool_ready osv-scanner; then
+        OSV_OS="$OS"
+        [ "$OSV_OS" = "macos" ] && OSV_OS="darwin"
+        OSV_ARCH="amd64"
+        [ "$ARCH" = "arm64" ] && OSV_ARCH="arm64"
+        install_osv_scanner_binary "$OSV_OS" "$OSV_ARCH" || true
+    fi
+    if ! is_tool_ready osv-scanner && [ "$DISTRO" = "arch" ]; then
+        # Arch/Cachy often has this package in official repos.
+        sudo pacman -Sy --noconfirm osv-scanner || true
     else
-        $PIPX_CMD install osv-scanner --force >/dev/null 2>&1 || true
+        :
     fi
 fi
 if is_tool_ready osv-scanner; then
