@@ -341,4 +341,16 @@ echo -e "   Run ${BLUE}authent8${NC} and go to ${BLUE}⚙ Configuration${NC} to 
 echo ""
 
 # Launch
+# Seed updater state with latest main commit (best effort).
+AUTHENT8_SHA=$(curl -fsSL https://api.github.com/repos/AshishOP/authent8/commits/main 2>/dev/null | grep '"sha"' | head -n1 | sed -E 's/.*"([a-f0-9]{40})".*/\1/' || true)
+if [ -n "$AUTHENT8_SHA" ]; then
+cat > "$HOME/.authent8_update_state.json" <<EOF
+{
+  "commit_sha": "$AUTHENT8_SHA",
+  "updated_at": "$(date -Iseconds)",
+  "source": "git+https://github.com/AshishOP/authent8.git"
+}
+EOF
+fi
+
 exec "$SHELL" -c "export PATH=\"$PATH\"; authent8 --help"

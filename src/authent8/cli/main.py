@@ -9,6 +9,8 @@ import os
 import sys
 import time
 import concurrent.futures
+import urllib.request
+import urllib.error
 from datetime import datetime
 from pathlib import Path
 from rich.console import Console, Group
@@ -85,6 +87,9 @@ custom_style = Style([
 # ═══════════════════════════════════════════════════════════════════════════════
 
 HISTORY_FILE = Path.home() / ".authent8_history.json"
+UPDATE_STATE_FILE = Path.home() / ".authent8_update_state.json"
+REPO_ZIP_URL = "git+https://github.com/AshishOP/authent8.git"
+REPO_COMMIT_API = "https://api.github.com/repos/AshishOP/authent8/commits/main"
 MAX_HISTORY = 10
 
 def load_scan_history() -> list:
@@ -116,6 +121,35 @@ def add_to_history(path: str, findings_count: int, critical: int, high: int, dur
 def get_recent_scans(limit: int = 3) -> list:
     history = load_scan_history()
     return history[-limit:][::-1]
+
+def load_update_state() -> dict:
+    try:
+        if UPDATE_STATE_FILE.exists():
+            with open(UPDATE_STATE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+def save_update_state(state: dict):
+    try:
+        with open(UPDATE_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+    except Exception:
+        pass
+
+def fetch_latest_main_commit(timeout: int = 8) -> str:
+    """Fetch latest commit SHA for GitHub main branch."""
+    req = urllib.request.Request(
+        REPO_COMMIT_API,
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "authent8-updater"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    sha = str(data.get("sha", "")).strip()
+    if not sha:
+        raise RuntimeError("Could not resolve latest commit SHA from GitHub")
+    return sha
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SYSTEM CHECKS
@@ -867,18 +901,53 @@ def run_interactive_loop():
             console.print("\n[#3b82f6]🔄 Checking for updates...[/#3b82f6]")
             try:
                 import subprocess
-                # Run pipx upgrade
-                res = subprocess.run(["pipx", "upgrade", "authent8"], capture_output=True, text=True)
-                if res.returncode == 0:
-                    if "already at the latest version" in res.stdout:
-                        console.print("[#10b981]✓ Authent8 is already up to date![/#10b981]")
+                try:
+                    latest_sha = fetch_latest_main_commit()
+                except Exception as e:
+                    console.print(f"[#ff9900]Could not check latest commit:[/#ff9900] {str(e)[:120]}")
+                    console.print("[#666666]Falling back to pipx upgrade check...[/#666666]")
+                    res = subprocess.run(["pipx", "upgrade", "authent8"], capture_output=True, text=True)
+                    if res.returncode == 0:
+                        if "already at the latest version" in res.stdout.lower():
+                            console.print("[#10b981]✓ Authent8 is already up to date![/#10b981]")
+                        else:
+                            console.print("[#10b981]✓ Success! Updated to latest version.[/#10b981]")
+                            console.print("[yellow]Please restart authent8 to apply changes.[/yellow]")
+                            time.sleep(2)
+                            os._exit(0)
                     else:
-                        console.print("[#10b981]✓ Success! Updated to latest version.[/#10b981]")
-                        console.print("[yellow]Please restart authent8 to apply changes.[/yellow]")
-                        time.sleep(2)
-                        os._exit(0)
+                        console.print(f"[#ff3333]Error updating:[/#ff3333] {res.stderr or res.stdout}")
+                    input("\nPress Enter to return...")
+                    continue
+
+                state = load_update_state()
+                local_sha = str(state.get("commit_sha", "")).strip()
+                if local_sha and local_sha == latest_sha:
+                    console.print("[#10b981]✓ Authent8 is already up to date (latest commit installed).[/#10b981]")
+                    input("\nPress Enter to return...")
+                    continue
+
+                console.print(f"[#666666]Update available:[/#666666] {latest_sha[:8]}")
+                res = subprocess.run(
+                    ["pipx", "install", REPO_ZIP_URL, "--force"],
+                    capture_output=True,
+                    text=True,
+                )
+                if res.returncode == 0:
+                    save_update_state(
+                        {
+                            "commit_sha": latest_sha,
+                            "updated_at": datetime.now().isoformat(),
+                            "source": REPO_ZIP_URL,
+                        }
+                    )
+                    console.print("[#10b981]✓ Success! Updated to latest version.[/#10b981]")
+                    console.print("[yellow]Please restart authent8 to apply changes.[/yellow]")
+                    time.sleep(2)
+                    os._exit(0)
                 else:
-                    console.print(f"[#ff3333]Error updating:[/#ff3333] {res.stderr}")
+                    err = res.stderr or res.stdout or "unknown error"
+                    console.print(f"[#ff3333]Error updating:[/#ff3333] {err[:180]}")
             except Exception as e:
                 console.print(f"[#ff3333]Update failed:[/#ff3333] {e}")
             input("\nPress Enter to return...")

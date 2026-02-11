@@ -294,3 +294,16 @@ Write-Host ""
 
 # Note about restart
 Write-Yellow "Note: You may need to restart your terminal for PATH changes to take effect."
+
+# Seed updater state with latest main commit (best effort)
+try {
+    $shaResp = Invoke-RestMethod -Uri "https://api.github.com/repos/AshishOP/authent8/commits/main"
+    if ($shaResp.sha) {
+        $state = @{
+            commit_sha = "$($shaResp.sha)"
+            updated_at = (Get-Date).ToString("o")
+            source = "git+https://github.com/AshishOP/authent8.git"
+        } | ConvertTo-Json
+        Set-Content -Path "$HOME\.authent8_update_state.json" -Value $state
+    }
+} catch {}
