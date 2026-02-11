@@ -8,6 +8,27 @@ function Write-Blue { param($msg) Write-Host $msg -ForegroundColor Blue }
 function Write-Green { param($msg) Write-Host $msg -ForegroundColor Green }
 function Write-Yellow { param($msg) Write-Host $msg -ForegroundColor Yellow }
 function Write-Red { param($msg) Write-Host $msg -ForegroundColor Red }
+$FailedTools = New-Object System.Collections.Generic.List[string]
+
+function Test-ToolReady {
+    param([string]$Tool)
+    return [bool](Get-Command $Tool -ErrorAction SilentlyContinue)
+}
+
+function Mark-ToolFailed {
+    param([string]$Tool)
+    $FailedTools.Add($Tool) | Out-Null
+}
+
+function Ensure-Pipx {
+    if (-not (Get-Command pipx -ErrorAction SilentlyContinue)) {
+        python -m pip install --user pipx --quiet
+        python -m pipx ensurepath | Out-Null
+        $userBase = python -c "import site; print(site.USER_BASE)"
+        $scripts = Join-Path $userBase "Scripts"
+        if ($env:Path -notlike "*$scripts*") { $env:Path = "$scripts;$env:Path" }
+    }
+}
 
 # Banner
 Write-Blue @"
@@ -77,6 +98,7 @@ try {
     Write-Host "       " -NoNewline; Write-Yellow "→ Installing pip..."
     python -m ensurepip --upgrade
 }
+Ensure-Pipx
 
 # Install Authent8
 Write-Blue "[4/5] Installing Authent8..."
@@ -115,33 +137,53 @@ Write-Host "       " -NoNewline; Write-Green "✓ Trivy ready"
 $semgrep = Get-Command semgrep -ErrorAction SilentlyContinue
 if (-not $semgrep) {
     Write-Host "       " -NoNewline; Write-Yellow "→ Installing Semgrep..."
-    python -m pip install --user semgrep --quiet
+    pipx install semgrep --force | Out-Null
 }
-Write-Host "       " -NoNewline; Write-Green "✓ Semgrep ready"
+if (Test-ToolReady "semgrep") {
+    Write-Host "       " -NoNewline; Write-Green "✓ Semgrep ready"
+} else {
+    Write-Host "       " -NoNewline; Write-Red "✗ Semgrep installation failed"
+    Mark-ToolFailed "semgrep"
+}
 
 # Bandit
 $bandit = Get-Command bandit -ErrorAction SilentlyContinue
 if (-not $bandit) {
     Write-Host "       " -NoNewline; Write-Yellow "→ Installing Bandit..."
-    python -m pip install --user bandit --quiet
+    pipx install bandit --force | Out-Null
 }
-Write-Host "       " -NoNewline; Write-Green "✓ Bandit ready"
+if (Test-ToolReady "bandit") {
+    Write-Host "       " -NoNewline; Write-Green "✓ Bandit ready"
+} else {
+    Write-Host "       " -NoNewline; Write-Red "✗ Bandit installation failed"
+    Mark-ToolFailed "bandit"
+}
 
 # detect-secrets
 $detectSecrets = Get-Command detect-secrets -ErrorAction SilentlyContinue
 if (-not $detectSecrets) {
     Write-Host "       " -NoNewline; Write-Yellow "→ Installing detect-secrets..."
-    python -m pip install --user detect-secrets --quiet
+    pipx install detect-secrets --force | Out-Null
 }
-Write-Host "       " -NoNewline; Write-Green "✓ detect-secrets ready"
+if (Test-ToolReady "detect-secrets") {
+    Write-Host "       " -NoNewline; Write-Green "✓ detect-secrets ready"
+} else {
+    Write-Host "       " -NoNewline; Write-Red "✗ detect-secrets installation failed"
+    Mark-ToolFailed "detect-secrets"
+}
 
 # Checkov
 $checkov = Get-Command checkov -ErrorAction SilentlyContinue
 if (-not $checkov) {
     Write-Host "       " -NoNewline; Write-Yellow "→ Installing Checkov..."
-    python -m pip install --user checkov --quiet
+    pipx install checkov --force | Out-Null
 }
-Write-Host "       " -NoNewline; Write-Green "✓ Checkov ready"
+if (Test-ToolReady "checkov") {
+    Write-Host "       " -NoNewline; Write-Green "✓ Checkov ready"
+} else {
+    Write-Host "       " -NoNewline; Write-Red "✗ Checkov installation failed"
+    Mark-ToolFailed "checkov"
+}
 
 # Grype
 $grype = Get-Command grype -ErrorAction SilentlyContinue
@@ -149,15 +191,25 @@ if (-not $grype -and $pkgManager -eq "choco") {
     Write-Host "       " -NoNewline; Write-Yellow "→ Installing Grype..."
     choco install grype -y
 }
-Write-Host "       " -NoNewline; Write-Green "✓ Grype ready"
+if (Test-ToolReady "grype") {
+    Write-Host "       " -NoNewline; Write-Green "✓ Grype ready"
+} else {
+    Write-Host "       " -NoNewline; Write-Yellow "⚠ Grype not installed (optional unless SCA scan enabled)"
+    Mark-ToolFailed "grype"
+}
 
 # OSV-Scanner
 $osv = Get-Command osv-scanner -ErrorAction SilentlyContinue
 if (-not $osv) {
     Write-Host "       " -NoNewline; Write-Yellow "→ Installing OSV-Scanner..."
-    python -m pip install --user osv-scanner --quiet
+    pipx install osv-scanner --force | Out-Null
 }
-Write-Host "       " -NoNewline; Write-Green "✓ OSV-Scanner ready"
+if (Test-ToolReady "osv-scanner") {
+    Write-Host "       " -NoNewline; Write-Green "✓ OSV-Scanner ready"
+} else {
+    Write-Host "       " -NoNewline; Write-Yellow "⚠ OSV-Scanner not installed (optional unless SCA scan enabled)"
+    Mark-ToolFailed "osv-scanner"
+}
 
 # Gitleaks
 $gitleaks = Get-Command gitleaks -ErrorAction SilentlyContinue
@@ -177,7 +229,12 @@ Write-Host "       " -NoNewline; Write-Green "✓ Gitleaks ready"
 
 Write-Host ""
 Write-Green "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-Write-Green "✓ Installation complete!"
+if ($FailedTools.Count -eq 0) {
+    Write-Green "✓ Installation complete!"
+} else {
+    Write-Yellow "⚠ Installation complete with issues."
+    Write-Yellow ("  Failed tools: " + ($FailedTools -join ", "))
+}
 Write-Green "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 Write-Host ""
 Write-Host "Run " -NoNewline; Write-Blue "authent8" -NoNewline; Write-Host " to start scanning!"

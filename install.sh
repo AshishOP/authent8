@@ -10,6 +10,16 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+FAILED_TOOLS=()
+
+mark_failed_tool() {
+    FAILED_TOOLS+=("$1")
+}
+
+is_tool_ready() {
+    local tool="$1"
+    command -v "$tool" &> /dev/null || [ -x "$HOME/.local/bin/$tool" ]
+}
 
 echo -e "${BLUE}"
 echo "  █████  ██   ██ ████████ ██  ██ ███████ ███   ██ ████████  █████ "
@@ -154,37 +164,62 @@ echo -e "       ${GREEN}✓${NC} Trivy ready"
 # Semgrep
 if ! command -v semgrep &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing Semgrep..."
-    $PIPX_CMD install semgrep 2>/dev/null || $PIPX_CMD install semgrep --force
+    $PIPX_CMD install semgrep --force >/dev/null 2>&1 || true
 fi
-echo -e "       ${GREEN}✓${NC} Semgrep ready"
+if is_tool_ready semgrep; then
+    echo -e "       ${GREEN}✓${NC} Semgrep ready"
+else
+    echo -e "       ${RED}✗${NC} Semgrep installation failed"
+    mark_failed_tool "semgrep"
+fi
 
 # Bandit
 if ! command -v bandit &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing Bandit..."
-    $PIPX_CMD install bandit 2>/dev/null || $PIPX_CMD install bandit --force
+    $PIPX_CMD install bandit --force >/dev/null 2>&1 || true
 fi
-echo -e "       ${GREEN}✓${NC} Bandit ready"
+if is_tool_ready bandit; then
+    echo -e "       ${GREEN}✓${NC} Bandit ready"
+else
+    echo -e "       ${RED}✗${NC} Bandit installation failed"
+    mark_failed_tool "bandit"
+fi
 
 # detect-secrets
 if ! command -v detect-secrets &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing detect-secrets..."
-    python3 -m pip install --user detect-secrets -q || true
+    $PIPX_CMD install detect-secrets --force >/dev/null 2>&1 || true
 fi
-echo -e "       ${GREEN}✓${NC} detect-secrets ready"
+if is_tool_ready detect-secrets; then
+    echo -e "       ${GREEN}✓${NC} detect-secrets ready"
+else
+    echo -e "       ${RED}✗${NC} detect-secrets installation failed"
+    mark_failed_tool "detect-secrets"
+fi
 
 # Checkov
 if ! command -v checkov &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing Checkov..."
-    python3 -m pip install --user checkov -q || true
+    $PIPX_CMD install checkov --force >/dev/null 2>&1 || true
 fi
-echo -e "       ${GREEN}✓${NC} Checkov ready"
+if is_tool_ready checkov; then
+    echo -e "       ${GREEN}✓${NC} Checkov ready"
+else
+    echo -e "       ${RED}✗${NC} Checkov installation failed"
+    mark_failed_tool "checkov"
+fi
 
 # Grype
 if ! command -v grype &> /dev/null; then
     echo -e "       ${YELLOW}→${NC} Installing Grype..."
     curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b "$HOME/.local/bin" || true
 fi
-echo -e "       ${GREEN}✓${NC} Grype ready"
+if is_tool_ready grype; then
+    echo -e "       ${GREEN}✓${NC} Grype ready"
+else
+    echo -e "       ${RED}✗${NC} Grype installation failed"
+    mark_failed_tool "grype"
+fi
 
 # OSV-Scanner
 if ! command -v osv-scanner &> /dev/null; then
@@ -192,10 +227,15 @@ if ! command -v osv-scanner &> /dev/null; then
     if command -v go &> /dev/null; then
         GOBIN="$HOME/.local/bin" go install github.com/google/osv-scanner/cmd/osv-scanner@latest || true
     else
-        python3 -m pip install --user osv-scanner -q || true
+        $PIPX_CMD install osv-scanner --force >/dev/null 2>&1 || true
     fi
 fi
-echo -e "       ${GREEN}✓${NC} OSV-Scanner ready"
+if is_tool_ready osv-scanner; then
+    echo -e "       ${GREEN}✓${NC} OSV-Scanner ready"
+else
+    echo -e "       ${RED}✗${NC} OSV-Scanner installation failed"
+    mark_failed_tool "osv-scanner"
+fi
 
 # Gitleaks
 if ! command -v gitleaks &> /dev/null; then
@@ -217,7 +257,12 @@ echo -e "       ${GREEN}✓${NC} Gitleaks ready"
 
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✓ Installation complete!${NC}"
+if [ "${#FAILED_TOOLS[@]}" -eq 0 ]; then
+    echo -e "${GREEN}✓ Installation complete!${NC}"
+else
+    echo -e "${YELLOW}⚠ Installation complete with issues.${NC}"
+    echo -e "${YELLOW}  Failed tools: ${FAILED_TOOLS[*]}${NC}"
+fi
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "Run ${BLUE}authent8${NC} to start scanning!"

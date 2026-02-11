@@ -19,6 +19,29 @@ def run_cmd(cmd, check=True):
     except subprocess.SubprocessError:
         return False
 
+def get_pipx_cmd():
+    """Best-effort pipx command path."""
+    pipx = shutil.which("pipx")
+    if pipx:
+        return pipx
+    local = os.path.join(os.path.expanduser("~"), ".local", "bin", "pipx")
+    if os.path.exists(local):
+        return local
+    return None
+
+def install_with_pipx(package: str, app_hint: str) -> bool:
+    """Install a CLI app via pipx."""
+    pipx_cmd = get_pipx_cmd()
+    if not pipx_cmd:
+        print(f"❌ pipx is required to install {app_hint}. Please install pipx first.")
+        return False
+    try:
+        subprocess.run([pipx_cmd, "install", package, "--force"], check=True)
+        return True
+    except Exception as e:
+        print(f"❌ Failed to install {app_hint} via pipx: {e}")
+        return False
+
 def get_local_bin():
     """Get the local bin path for authent8 tools"""
     if platform.system().lower() == "windows":
@@ -45,48 +68,40 @@ def is_installed(tool):
     return False
 
 def install_semgrep():
-    """Install semgrep via pip"""
+    """Install semgrep via pipx"""
     print("📦 Installing Semgrep...")
-    try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "semgrep", "-q"], check=True)
+    if install_with_pipx("semgrep", "Semgrep") and is_installed("semgrep"):
         print("✅ Semgrep installed!")
         return True
-    except Exception as e:
-        print(f"❌ Failed to install Semgrep: {e}")
-        return False
+    print("❌ Semgrep is still not available after installation.")
+    return False
 
 def install_bandit():
-    """Install Bandit via pip"""
+    """Install Bandit via pipx"""
     print("📦 Installing Bandit...")
-    try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "bandit", "-q"], check=True)
+    if install_with_pipx("bandit", "Bandit") and is_installed("bandit"):
         print("✅ Bandit installed!")
         return True
-    except Exception as e:
-        print(f"❌ Failed to install Bandit: {e}")
-        return False
+    print("❌ Bandit is still not available after installation.")
+    return False
 
 def install_detect_secrets():
-    """Install detect-secrets via pip"""
+    """Install detect-secrets via pipx"""
     print("📦 Installing detect-secrets...")
-    try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "detect-secrets", "-q"], check=True)
+    if install_with_pipx("detect-secrets", "detect-secrets") and is_installed("detect-secrets"):
         print("✅ detect-secrets installed!")
         return True
-    except Exception as e:
-        print(f"❌ Failed to install detect-secrets: {e}")
-        return False
+    print("❌ detect-secrets is still not available after installation.")
+    return False
 
 def install_checkov():
-    """Install Checkov via pip"""
+    """Install Checkov via pipx"""
     print("📦 Installing Checkov...")
-    try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "checkov", "-q"], check=True)
+    if install_with_pipx("checkov", "Checkov") and is_installed("checkov"):
         print("✅ Checkov installed!")
         return True
-    except Exception as e:
-        print(f"❌ Failed to install Checkov: {e}")
-        return False
+    print("❌ Checkov is still not available after installation.")
+    return False
 
 def install_grype():
     """Install Grype using official install script on Unix-like systems."""
@@ -127,13 +142,15 @@ def install_osv_scanner():
                 )
                 print(f"✅ OSV-Scanner installed via go install to {local_bin}!")
                 return True
-        # Fallback attempt via pip package if available in environment mirror.
-        subprocess.run([sys.executable, "-m", "pip", "install", "osv-scanner", "-q"], check=True)
-        print("✅ OSV-Scanner installed!")
-        return True
+        if install_with_pipx("osv-scanner", "OSV-Scanner") and is_installed("osv-scanner"):
+            print("✅ OSV-Scanner installed!")
+            return True
     except Exception as e:
         print(f"⚠️  Could not auto-install OSV-Scanner: {e}")
+    if not is_installed("osv-scanner"):
+        print("❌ OSV-Scanner is still not available after installation.")
         return False
+    return True
 
 def install_trivy():
     """Install Trivy based on OS"""
