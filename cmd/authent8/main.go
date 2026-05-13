@@ -67,8 +67,6 @@ func main() {
 func runInteractiveMenu() error {
 	fmt.Print(ui.Banner(version))
 	
-	// Create the custom theme matching the OpenCode Dark Theme Colors
-	// 'bg': '#000000', 'blue_primary': '#3b82f6', 'text_main': '#e5e5e5'
 	theme := huh.ThemeBase()
 	theme.Focused.Base = theme.Focused.Base.Foreground(ui.ColorPrimary)
 	theme.Focused.Title = theme.Focused.Title.Foreground(ui.ColorWhite).Bold(true)
@@ -80,22 +78,26 @@ func runInteractiveMenu() error {
 	err := huh.NewSelect[string]().
 		Title("What would you like to do?").
 		Options(
-			huh.NewOption("▶ Start New Scan", "scan"),
-			huh.NewOption("🤖 Setup AI Provider", "ai"),
-			huh.NewOption("🔧 Install/Fix Tooling", "check"),
-			huh.NewOption("📜 View Scan History", "history"),
-			huh.NewOption("❌ Exit", "exit"),
+			huh.NewOption("⚡ Quick Scan       Scan current directory", "quick"),
+			huh.NewOption("📝 Manual Path      Enter path directly", "manual"),
+			huh.NewOption("🛡️  False Positives  Manage ignored findings", "fps"),
+			huh.NewOption("📜 Scan History     View previous scans", "history"),
+			huh.NewOption("⚙️  Configuration    View settings & status", "config"),
+			huh.NewOption("❌ Exit             Close authent8", "exit"),
 		).
 		Value(&choice).
 		WithTheme(theme).
 		Run()
 
 	if err != nil {
-		return nil // User pressed ctrl+c or esc
+		return nil
 	}
 
 	switch choice {
-	case "scan":
+	case "quick":
+		os.Args = []string{"authent8", "scan", "."}
+		main()
+	case "manual":
 		var scanPath string
 		huh.NewInput().
 			Title("Enter project path to scan:").
@@ -106,14 +108,13 @@ func runInteractiveMenu() error {
 		if scanPath == "" {
 			scanPath = "."
 		}
-		// Dispatch to scan command
 		os.Args = []string{"authent8", "scan", scanPath}
 		main()
-	case "ai":
-		setupAIProvider(theme)
-	case "check":
-		os.Args = []string{"authent8", "check"}
-		main()
+	case "config":
+		runConfigurationMenu(theme)
+	case "fps":
+		fmt.Println("\n" + ui.Primary.Render("Manage False Positives is coming soon in v3!"))
+		fmt.Println("For now, you can manually edit the .authent8_fp.json file.")
 	case "history":
 		os.Args = []string{"authent8", "history"}
 		main()
@@ -122,15 +123,67 @@ func runInteractiveMenu() error {
 	return nil
 }
 
+func runConfigurationMenu(theme *huh.Theme) {
+	fmt.Print("\033[H\033[2J") // clear screen
+	fmt.Println("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#3b82f6")).Bold(true).Render("⚙️  ENGINE CONFIGURATION") + "\n")
+	
+	// Print AI Settings table
+	aiCfg := config.GetAIConfig()
+	keyStatus := ui.Error.Render("✗ Not set")
+	if aiCfg.APIKey != "" {
+		keyStatus = ui.Success.Render("✓ Set")
+	}
+	
+	fmt.Printf("  Provider:   %s\n", ui.Info.Render(aiCfg.Provider))
+	fmt.Printf("  AI Model:   %s\n", ui.Info.Render(aiCfg.Model))
+	fmt.Printf("  API Key:    %s\n", keyStatus)
+	baseURL := aiCfg.BaseURL
+	if baseURL == "" { baseURL = "Default" }
+	fmt.Printf("  Base URL:   %s\n\n", ui.Dim.Render(baseURL))
+	
+	// Tool Status
+	results, _ := installer.CheckAll()
+	for _, r := range results {
+		icon := ui.ToolIcon(r.Tool.Name)
+		status := ui.Error.Render("✗ Missing")
+		if r.Installed {
+			status = ui.Success.Render("✓ Installed")
+		}
+		fmt.Printf("  %s %-16s %s\n", icon, r.Tool.Name, status)
+	}
+	fmt.Println()
+
+	var subChoice string
+	huh.NewSelect[string]().
+		Title("What would you like to do?").
+		Options(
+			huh.NewOption("Setup AI Provider", "ai"),
+			huh.NewOption("Install/Fix Tooling", "tools"),
+			huh.NewOption("Back to Main Menu", "back"),
+		).
+		Value(&subChoice).
+		WithTheme(theme).
+		Run()
+
+	if subChoice == "ai" {
+		setupAIProvider(theme)
+	} else if subChoice == "tools" {
+		os.Args = []string{"authent8", "check"}
+		main()
+	} else {
+		runInteractiveMenu()
+	}
+}
+
 func setupAIProvider(theme *huh.Theme) {
-	fmt.Println("\n" + ui.Primary.Render("Connecting AI Provider..."))
+	fmt.Println("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#3b82f6")).Bold(true).Render("Connect a provider"))
 	var provider string
 	huh.NewSelect[string]().
 		Title("Select your AI provider:").
 		Options(
 			huh.NewOption("OpenAI", "OpenAI"),
 			huh.NewOption("Anthropic", "Anthropic"),
-			huh.NewOption("Google (Gemini)", "Google"),
+			huh.NewOption("Google Gemini", "Google Gemini"),
 			huh.NewOption("Custom (OpenAI Compatible)", "Custom"),
 		).
 		Value(&provider).
@@ -168,7 +221,6 @@ func setupAIProvider(theme *huh.Theme) {
 		return
 	}
 
-	// Save to config
 	cfg := map[string]string{
 		"AUTHENT8_AI_PROVIDER": provider,
 		"AUTHENT8_AI_KEY":      apiKey,
@@ -177,7 +229,8 @@ func setupAIProvider(theme *huh.Theme) {
 	}
 	config.SaveConfig(cfg)
 	fmt.Println(ui.Success.Render(fmt.Sprintf("\n✓ Connected to %s successfully!", provider)))
-	fmt.Println(ui.Dim.Render("You can now run 'authent8 scan' with AI validation enabled."))
+	fmt.Println(ui.Dim.Render("You can now run scans with AI validation enabled."))
+	runConfigurationMenu(theme)
 }
 
 // --- scan command ---
