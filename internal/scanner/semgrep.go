@@ -34,7 +34,6 @@ var semgrepRulePacks = []string{
 	"p/docker",
 	"p/kubernetes",
 	"p/terraform",
-	"p/aws-security",
 	"p/react",
 	"p/typescript",
 }
@@ -82,42 +81,35 @@ func (s *SemgrepScanner) Scan(ctx context.Context, projectPath string, ignorePat
 	args = append(args, projectPath)
 
 	cmd := exec.CommandContext(ctx, "semgrep", args...)
-	out, err := cmd.Output()
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err = cmd.Run()
 
-	// Handle non-zero exit: Semgrep returns 1 when findings exist, 2 on partial failures.
+	stdoutBytes := []byte(stdout.String())
+
+	// Semgrep exit codes: 0=clean, 1=findings, 2+=error with possible partial results
+	// Always try to parse stdout first regardless of exit code
+	if parsed := tryParseSemgrepOutput(stdoutBytes); parsed != nil {
+		return parsed, nil
+	}
+
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			// Try parsing output even on non-zero exit (semgrep often returns partial results)
-			if parsed := tryParseSemgrepOutput(out); parsed != nil {
-				return parsed, nil
-			}
+		errMsg := strings.TrimSpace(stderr.String())
+		lowerErr := strings.ToLower(errMsg)
 
-			errMsg := strings.TrimSpace(string(exitErr.Stderr))
-			lowerErr := strings.ToLower(errMsg)
+		// If remote rule download failed, fallback to local custom rules only
+		if (strings.Contains(lowerErr, "failed to download") ||
+			strings.Contains(lowerErr, "could not download") ||
+			strings.Contains(lowerErr, "network")) && customRulesPath != "" {
 
-			// If remote rule download failed, fallback to local custom rules only
-			if (strings.Contains(lowerErr, "failed to download") ||
-				strings.Contains(lowerErr, "could not download") ||
-				strings.Contains(lowerErr, "network")) && customRulesPath != "" {
-
-				return s.scanLocalOnly(ctx, projectPath, customRulesPath, excludeArgs)
-			}
-
-			return nil, fmt.Errorf("semgrep failed: %s", Truncate(errMsg, 300))
+			return s.scanLocalOnly(ctx, projectPath, customRulesPath, excludeArgs)
 		}
-		return nil, fmt.Errorf("semgrep: %w", err)
+
+		return nil, fmt.Errorf("semgrep failed: %s", Truncate(errMsg, 300))
 	}
 
-	if len(strings.TrimSpace(string(out))) == 0 {
-		return nil, nil
-	}
-
-	var data semgrepOutput
-	if err := json.Unmarshal(out, &data); err != nil {
-		return nil, fmt.Errorf("semgrep returned invalid JSON: %w", err)
-	}
-
-	return parseSemgrepResults(data), nil
+	return nil, nil
 }
 
 // scanLocalOnly falls back to custom rules only when remote packs fail to download.
@@ -134,27 +126,23 @@ func (s *SemgrepScanner) scanLocalOnly(ctx context.Context, projectPath, customR
 	args = append(args, projectPath)
 
 	cmd := exec.CommandContext(ctx, "semgrep", args...)
-	out, err := cmd.Output()
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	stdoutBytes := []byte(stdout.String())
+
+	if parsed := tryParseSemgrepOutput(stdoutBytes); parsed != nil {
+		return parsed, nil
+	}
+
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if parsed := tryParseSemgrepOutput(out); parsed != nil {
-				return parsed, nil
-			}
-			errMsg := strings.TrimSpace(string(exitErr.Stderr))
-			return nil, fmt.Errorf("semgrep failed (local fallback): %s", Truncate(errMsg, 300))
-		}
-		return nil, fmt.Errorf("semgrep (local fallback): %w", err)
+		errMsg := strings.TrimSpace(stderr.String())
+		return nil, fmt.Errorf("semgrep failed (local fallback): %s", Truncate(errMsg, 300))
 	}
 
-	if len(strings.TrimSpace(string(out))) == 0 {
-		return nil, nil
-	}
-
-	var data semgrepOutput
-	if err := json.Unmarshal(out, &data); err != nil {
-		return nil, fmt.Errorf("semgrep returned invalid JSON: %w", err)
-	}
-	return parseSemgrepResults(data), nil
+	return nil, nil
 }
 
 func tryParseSemgrepOutput(out []byte) []Finding {
@@ -179,11 +167,11 @@ type semgrepOutput struct {
 }
 
 type semgrepResult struct {
-	CheckID string         `json:"check_id"`
-	Path    string         `json:"path"`
-	Start   semgrepPos     `json:"start"`
-	End     semgrepPos     `json:"end"`
-	Extra   semgrepExtra   `json:"extra"`
+	CheckID string       `json:"check_id"`
+	Path    string       `json:"path"`
+	Start   semgrepPos   `json:"start"`
+	End     semgrepPos   `json:"end"`
+	Extra   semgrepExtra `json:"extra"`
 }
 
 type semgrepPos struct {
@@ -201,7 +189,12 @@ func parseSemgrepResults(data semgrepOutput) []Finding {
 	var findings []Finding
 
 	for _, r := range data.Results {
-		code := sanitizeText(Truncate(r.Extra.Lines, 300))
+		lines := r.Extra.Lines
+		// Semgrep OSS may return "requires login" for code lines
+		if lines == "requires login" {
+			lines = ""
+		}
+		code := sanitizeText(Truncate(lines, 300))
 		message := sanitizeText(r.Extra.Message)
 
 		// Map semgrep severity to standard

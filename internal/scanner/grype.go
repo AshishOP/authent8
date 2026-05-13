@@ -25,38 +25,34 @@ func (g *GrypeScanner) Scan(ctx context.Context, projectPath string, ignorePatte
 	}
 	// Exclude environment directories
 	for _, rel := range []string{".venv", "venv", "site-packages", ".git", "__pycache__"} {
-		args = append(args, "--exclude", filepath.Join(projectPath, rel))
+		args = append(args, "--exclude", filepath.Join("**", rel))
 	}
 
 	cmd := exec.CommandContext(ctx, "grype", args...)
-	out, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			// Grype returns 1 or 2 when vulnerabilities are found
-			if (exitErr.ExitCode() == 1 || exitErr.ExitCode() == 2) && len(out) > 0 {
-				// Parse output below
-			} else {
-				errMsg := strings.TrimSpace(string(exitErr.Stderr))
-				if errMsg == "" {
-					errMsg = string(out)
-				}
-				return nil, fmt.Errorf("grype failed: %s", Truncate(errMsg, 300))
-			}
-		} else {
-			return nil, fmt.Errorf("grype: %w", err)
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	stdoutStr := strings.TrimSpace(stdout.String())
+
+	// Grype returns exit code 1 when vulns found — always try parsing stdout first
+	if stdoutStr != "" {
+		var data grypeOutput
+		if jsonErr := json.Unmarshal([]byte(stdoutStr), &data); jsonErr == nil {
+			return parseGrypeResults(data, projectPath, ignorePatterns), nil
 		}
 	}
 
-	if len(strings.TrimSpace(string(out))) == 0 {
-		return nil, nil
+	if err != nil {
+		errMsg := strings.TrimSpace(stderr.String())
+		if errMsg == "" {
+			errMsg = "unknown error (no stderr output)"
+		}
+		return nil, fmt.Errorf("grype failed: %s", Truncate(errMsg, 300))
 	}
 
-	var data grypeOutput
-	if err := json.Unmarshal(out, &data); err != nil {
-		return nil, fmt.Errorf("grype returned invalid JSON: %w", err)
-	}
-
-	return parseGrypeResults(data, projectPath, ignorePatterns), nil
+	return nil, nil
 }
 
 // --- Grype JSON structures ---
@@ -71,19 +67,21 @@ type grypeMatch struct {
 }
 
 type grypeVuln struct {
-	ID          string   `json:"id"`
-	Severity    string   `json:"severity"`
-	Description string   `json:"description"`
+	ID          string    `json:"id"`
+	Severity    string    `json:"severity"`
+	Description string    `json:"description"`
 	Fix         *grypeFix `json:"fix"`
 }
 
 type grypeFix struct {
 	Versions []string `json:"versions"`
+	State    string   `json:"state"`
 }
 
 type grypeArtifact struct {
-	Name      string           `json:"name"`
-	Locations []grypeLocation  `json:"locations"`
+	Name      string          `json:"name"`
+	Version   string          `json:"version"`
+	Locations []grypeLocation `json:"locations"`
 }
 
 type grypeLocation struct {
@@ -102,10 +100,7 @@ func parseGrypeResults(data grypeOutput, projectPath string, ignorePatterns []st
 		// Skip non-repo metadata noise (e.g., METADATA from environment packages)
 		baseName := filepath.Base(location)
 		if baseName == "METADATA" || baseName == "PKG-INFO" {
-			fullPath := filepath.Join(projectPath, location)
-			if _, err := filepath.Abs(fullPath); err != nil {
-				continue
-			}
+			continue
 		}
 
 		// Apply ignore patterns
@@ -128,7 +123,7 @@ func parseGrypeResults(data grypeOutput, projectPath string, ignorePatterns []st
 			RuleID:       match.Vulnerability.ID,
 			Title:        Truncate(match.Vulnerability.ID, 200),
 			Description:  Truncate(match.Vulnerability.Description, 500),
-			Message:      Truncate(fmt.Sprintf("%s vulnerable: %s", match.Artifact.Name, match.Vulnerability.ID), 200),
+			Message:      Truncate(fmt.Sprintf("%s %s vulnerable: %s", match.Artifact.Name, match.Artifact.Version, match.Vulnerability.ID), 200),
 			File:         location,
 			Line:         0,
 			Package:      match.Artifact.Name,
