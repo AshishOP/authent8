@@ -1,0 +1,31 @@
+# Trivy Configuration for Authent8
+# Focus on HIGH and CRITICAL vulnerabilities only
+
+scan:
+  scanners:
+    - vuln
+    - misconfig
+  
+  severity:
+    - CRITICAL
+    - HIGH
+    - MEDIUM
+  
+  skip-dirs:
+    - node_modules
+    - vendor
+    - venv
+    - .venv
+    - .git
+    - .pytest_cache
+    - __pycache__
+    - dist
+    - build
+
+vulnerability:
+  ignore-unfixed: true
+
+database:
+  skip-update: false
+
+timeout: 10m

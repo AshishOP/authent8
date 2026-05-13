@@ -51,3 +51,5 @@ DETECTION_UPGRADE_PLAN.md
 benchmark_datasets/
 benchmark_real/
 test_*.py
+authent8
+dist/
