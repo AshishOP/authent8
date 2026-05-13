@@ -20,6 +20,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
@@ -43,6 +45,9 @@ func main() {
 		Use:   "authent8",
 		Short: "Authent8 — Privacy-First Security Scanner",
 		Long:  "A DevSecOps tool that scans your code for vulnerabilities, secrets, and misconfigurations using 8 industry-standard scanners with AI-powered false positive detection.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runInteractiveMenu()
+		},
 	}
 
 	rootCmd.AddCommand(
@@ -55,6 +60,124 @@ func main() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+// --- interactive menu ---
+
+func runInteractiveMenu() error {
+	fmt.Print(ui.Banner(version))
+	
+	// Create the custom theme matching the OpenCode Dark Theme Colors
+	// 'bg': '#000000', 'blue_primary': '#3b82f6', 'text_main': '#e5e5e5'
+	theme := huh.ThemeBase()
+	theme.Focused.Base = theme.Focused.Base.Foreground(ui.ColorPrimary)
+	theme.Focused.Title = theme.Focused.Title.Foreground(ui.ColorWhite).Bold(true)
+	theme.Focused.SelectedOption = theme.Focused.SelectedOption.Foreground(lipgloss.Color("#3b82f6")).Bold(true)
+	theme.Focused.UnselectedOption = theme.Focused.UnselectedOption.Foreground(ui.ColorMuted)
+	theme.Focused.FocusedButton = theme.Focused.FocusedButton.Foreground(ui.ColorPrimary).Background(ui.ColorPrimary)
+
+	var choice string
+	err := huh.NewSelect[string]().
+		Title("What would you like to do?").
+		Options(
+			huh.NewOption("▶ Start New Scan", "scan"),
+			huh.NewOption("🤖 Setup AI Provider", "ai"),
+			huh.NewOption("🔧 Install/Fix Tooling", "check"),
+			huh.NewOption("📜 View Scan History", "history"),
+			huh.NewOption("❌ Exit", "exit"),
+		).
+		Value(&choice).
+		WithTheme(theme).
+		Run()
+
+	if err != nil {
+		return nil // User pressed ctrl+c or esc
+	}
+
+	switch choice {
+	case "scan":
+		var scanPath string
+		huh.NewInput().
+			Title("Enter project path to scan:").
+			Value(&scanPath).
+			Placeholder(".").
+			WithTheme(theme).
+			Run()
+		if scanPath == "" {
+			scanPath = "."
+		}
+		// Dispatch to scan command
+		os.Args = []string{"authent8", "scan", scanPath}
+		main()
+	case "ai":
+		setupAIProvider(theme)
+	case "check":
+		os.Args = []string{"authent8", "check"}
+		main()
+	case "history":
+		os.Args = []string{"authent8", "history"}
+		main()
+	}
+
+	return nil
+}
+
+func setupAIProvider(theme *huh.Theme) {
+	fmt.Println("\n" + ui.Primary.Render("Connecting AI Provider..."))
+	var provider string
+	huh.NewSelect[string]().
+		Title("Select your AI provider:").
+		Options(
+			huh.NewOption("OpenAI", "OpenAI"),
+			huh.NewOption("Anthropic", "Anthropic"),
+			huh.NewOption("Google (Gemini)", "Google"),
+			huh.NewOption("Custom (OpenAI Compatible)", "Custom"),
+		).
+		Value(&provider).
+		WithTheme(theme).
+		Run()
+
+	var apiKey string
+	huh.NewInput().
+		Title(fmt.Sprintf("Enter your %s API Key:", provider)).
+		EchoMode(huh.EchoModePassword).
+		Value(&apiKey).
+		WithTheme(theme).
+		Run()
+
+	var model string
+	huh.NewInput().
+		Title("Enter AI Model ID:").
+		Placeholder("gpt-4o").
+		Value(&model).
+		WithTheme(theme).
+		Run()
+		
+	var baseURL string
+	if provider == "Custom" {
+		huh.NewInput().
+			Title("Enter Base URL:").
+			Placeholder("https://api.openai.com/v1").
+			Value(&baseURL).
+			WithTheme(theme).
+			Run()
+	}
+	
+	if apiKey == "" || model == "" {
+		fmt.Println(ui.Error.Render("✗ Setup cancelled. API key and model are required."))
+		return
+	}
+
+	// Save to config
+	cfg := map[string]string{
+		"AUTHENT8_AI_PROVIDER": provider,
+		"AUTHENT8_AI_KEY":      apiKey,
+		"AUTHENT8_AI_MODEL":    model,
+		"AUTHENT8_AI_BASE_URL": baseURL,
+	}
+	config.SaveConfig(cfg)
+	fmt.Println(ui.Success.Render(fmt.Sprintf("\n✓ Connected to %s successfully!", provider)))
+	fmt.Println(ui.Dim.Render("You can now run 'authent8 scan' with AI validation enabled."))
 }
 
 // --- scan command ---
